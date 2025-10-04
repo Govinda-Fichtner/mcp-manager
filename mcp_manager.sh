@@ -15,32 +15,63 @@ readonly REGISTRY_FILE="${REGISTRY_FILE:-$SCRIPT_DIR/mcp_server_registry.yml}"
 readonly ENV_FILE="${ENV_FILE:-$SCRIPT_DIR/.env}"
 readonly VERSION="0.1.0"
 
+# Logging configuration
+LOG_FILE="${LOG_FILE:-}"  # Can be set via --log-file flag
+DEBUG="${DEBUG:-false}"    # Can be set via --debug or --verbose flag
+
 # Colors for output
 readonly RED='\033[0;31m'
 readonly GREEN='\033[0;32m'
 readonly YELLOW='\033[1;33m'
+readonly BLUE='\033[0;34m'
 readonly NC='\033[0m' # No Color
 
 #######################################
 # Logging Functions
 #######################################
 
+# Write to log file if configured
+# Arguments:
+#   $1 - Log level
+#   $@ - Message
+write_to_log_file() {
+  if [[ -n "$LOG_FILE" ]]; then
+    local level="$1"
+    shift
+    local timestamp
+    timestamp="$(date -Iseconds 2>/dev/null || date '+%Y-%m-%dT%H:%M:%S')"
+    echo "[$timestamp] [$level] $*" >> "$LOG_FILE"
+  fi
+}
+
 log_info() {
   echo -e "${GREEN}[INFO]${NC} $*"
+  write_to_log_file "INFO" "$@"
 }
 
 log_warn() {
   echo -e "${YELLOW}[WARN]${NC} $*" >&2
+  write_to_log_file "WARN" "$@"
 }
 
 log_error() {
   echo -e "${RED}[ERROR]${NC} $*" >&2
+  write_to_log_file "ERROR" "$@"
 }
 
 log_debug() {
-  if [[ "${DEBUG:-}" == "true" ]]; then
-    echo -e "[DEBUG] $*" >&2
+  if [[ "$DEBUG" == "true" ]]; then
+    echo -e "${BLUE}[DEBUG]${NC} $*" >&2
   fi
+  write_to_log_file "DEBUG" "$@"
+}
+
+# Verbose logging - same as debug but with different semantic meaning
+log_verbose() {
+  if [[ "$DEBUG" == "true" ]]; then
+    echo -e "${BLUE}[VERBOSE]${NC} $*" >&2
+  fi
+  write_to_log_file "VERBOSE" "$@"
 }
 
 #######################################
@@ -242,7 +273,8 @@ COMMANDS:
   help                    Show this help message
 
 OPTIONS:
-  --debug                 Enable debug output
+  --debug, --verbose, -v  Enable verbose debug output
+  --log-file <path>       Write detailed logs to file
   --registry <file>       Use custom registry file
   --env <file>            Use custom .env file
 
@@ -258,6 +290,12 @@ EXAMPLES:
 
   # Check server health
   mcp_manager.sh health github
+
+  # Enable verbose logging
+  mcp_manager.sh --verbose setup filesystem
+
+  # Log to file for troubleshooting
+  mcp_manager.sh --log-file /tmp/mcp-debug.log setup github
 
 For more information, see: https://github.com/yourusername/mcp-manager
 EOF
@@ -310,12 +348,17 @@ docker_pull_image() {
   local platform="${2:-$(detect_platform)}"
 
   log_info "Pulling image: $image (platform: $platform)"
+  log_verbose "Docker pull command: docker pull --platform $platform $image"
 
   if docker pull --platform "$platform" "$image"; then
     log_info "Successfully pulled: $image"
+    local image_id
+    image_id="$(docker_image_id "$image")"
+    log_verbose "Image ID: $image_id"
     return 0
   else
     log_error "Failed to pull image: $image"
+    log_verbose "Docker pull failed - check network connection and image availability"
     return 1
   fi
 }
@@ -329,10 +372,12 @@ docker_pull_image() {
 load_env_file() {
   if [[ -f "$ENV_FILE" ]]; then
     log_debug "Loading environment from: $ENV_FILE"
+    log_verbose "Environment file found: $ENV_FILE"
     # shellcheck disable=SC1090
     set -a
     source "$ENV_FILE"
     set +a
+    log_verbose "Environment variables loaded successfully"
   else
     log_debug "No .env file found at: $ENV_FILE"
   fi
@@ -565,6 +610,7 @@ setup_from_registry() {
   local server_name="$1"
 
   log_info "Setting up $server_name from registry"
+  log_verbose "Server name: $server_name"
 
   local registry image_name tag image
   registry="$(get_server_field "$server_name" "source.registry")"
@@ -572,9 +618,15 @@ setup_from_registry() {
   tag="$(get_server_field "$server_name" "source.tag")"
   image="${registry}/${image_name}:${tag}"
 
+  log_verbose "Registry: $registry"
+  log_verbose "Image name: $image_name"
+  log_verbose "Tag: $tag"
+  log_verbose "Full image: $image"
+
   # Pull image
   if docker_pull_image "$image"; then
     log_info "Setup complete for: $server_name"
+    log_verbose "Image pulled successfully"
     echo ""
     echo "Next steps:"
     echo "  1. Configure environment variables in .env file"
@@ -582,6 +634,7 @@ setup_from_registry() {
     echo "  3. Check health: mcp_manager.sh health $server_name"
     return 0
   else
+    log_verbose "Image pull failed"
     return 1
   fi
 }
@@ -593,6 +646,7 @@ setup_from_repository() {
   local server_name="$1"
 
   log_info "Setting up $server_name from repository"
+  log_verbose "Server name: $server_name"
 
   local repo subdirectory dockerfile build_context
   repo="$(get_server_field "$server_name" "source.repository")"
@@ -600,25 +654,34 @@ setup_from_repository() {
   dockerfile="$(get_server_field "$server_name" "source.dockerfile")"
   build_context="$(get_server_field "$server_name" "source.build_context")"
 
+  log_verbose "Repository: $repo"
+  log_verbose "Subdirectory: $subdirectory"
+  log_verbose "Dockerfile path: $dockerfile"
+  log_verbose "Build context: $build_context"
+
   # Create temporary directory for clone
   local tmp_dir="$SCRIPT_DIR/tmp/build_${server_name}_$$"
+  log_verbose "Creating temporary directory: $tmp_dir"
   mkdir -p "$tmp_dir"
 
   log_info "Cloning repository: $repo"
+  log_verbose "Clone depth: 1 (shallow clone)"
   if ! git clone --depth 1 "$repo" "$tmp_dir"; then
     log_error "Failed to clone repository"
+    log_verbose "Cleaning up: $tmp_dir"
     rm -rf "$tmp_dir"
     return 1
   fi
+  log_verbose "Repository cloned successfully"
 
-  # Navigate to subdirectory if specified
+  # Determine build directory
+  # If subdirectory is set, it's informational - build context is always from repo root
   local build_dir="$tmp_dir"
-  if [[ "$subdirectory" != "null" && -n "$subdirectory" ]]; then
-    build_dir="$tmp_dir/$subdirectory"
-  fi
+  log_verbose "Build directory: $build_dir"
 
   if [[ ! -d "$build_dir" ]]; then
     log_error "Build directory not found: $build_dir"
+    log_verbose "Cleaning up: $tmp_dir"
     rm -rf "$tmp_dir"
     return 1
   fi
@@ -630,12 +693,18 @@ setup_from_repository() {
 
   log_info "Building Docker image: $image_tag"
   log_info "Platform: $platform"
+  log_info "Dockerfile: $dockerfile"
+  log_info "Build context: $build_context"
+  log_verbose "Working directory for build: $build_dir"
 
   cd "$build_dir" || return 1
 
+  log_verbose "Starting Docker build..."
   if docker build --platform "$platform" -t "$image_tag" -f "$dockerfile" "$build_context"; then
     log_info "Successfully built: $image_tag"
+    log_verbose "Returning to script directory"
     cd "$SCRIPT_DIR" || true
+    log_verbose "Cleaning up: $tmp_dir"
     rm -rf "$tmp_dir"
 
     echo ""
@@ -695,6 +764,10 @@ cmd_config() {
     return 1
   fi
 
+  log_verbose "Generating config for server: $server_name"
+  log_verbose "Format: $format"
+  log_verbose "Output mode: $output_mode"
+
   if ! validate_registry; then
     return 1
   fi
@@ -709,6 +782,7 @@ cmd_config() {
   # Validate format
   case "$format" in
     claude-code|claude-desktop|gemini-cli)
+      log_verbose "Format validated: $format"
       ;;
     *)
       log_error "Unknown format: $format"
@@ -844,9 +918,13 @@ main() {
   # Parse global flags
   while [[ $# -gt 0 ]]; do
     case "$1" in
-      --debug)
+      --debug|--verbose|-v)
         export DEBUG=true
         shift
+        ;;
+      --log-file)
+        export LOG_FILE="$2"
+        shift 2
         ;;
       --registry)
         export REGISTRY_FILE="$2"
@@ -865,6 +943,21 @@ main() {
   # Get command (after flags)
   command="${1:-help}"
   shift || true
+
+  # Initialize log file if specified
+  if [[ -n "$LOG_FILE" ]]; then
+    log_verbose "Log file enabled: $LOG_FILE"
+    # Create log file directory if needed
+    local log_dir
+    log_dir="$(dirname "$LOG_FILE")"
+    if [[ ! -d "$log_dir" ]]; then
+      mkdir -p "$log_dir"
+    fi
+    # Clear or create log file
+    : > "$LOG_FILE"
+    log_verbose "MCP Manager v$VERSION starting"
+    log_verbose "Command: $command"
+  fi
 
   # Route to command
   case "$command" in
