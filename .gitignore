@@ -1,0 +1,35 @@
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# Temporary files
+tmp/
+*.tmp
+*.swp
+*~
+
+# Test artifacts
+.shellspec-*
+coverage/
+
+# Docker volumes and data
+data/
+volumes/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.sublime-*
+
+# Logs
+*.log
+logs/
+
+# State files
+mcp.json
+mcp.json.bak

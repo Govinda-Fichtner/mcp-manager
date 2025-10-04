@@ -1,0 +1,18 @@
+## ShellSpec configuration for MCP Manager
+
+--require spec_helper
+
+## Set shell to bash (not sh)
+--shell bash
+
+## Default  options
+--format documentation
+--color
+--jobs 4
+
+## Coverage (if kcov is installed)
+# --kcov
+
+## Example format
+# --format tap
+# --format junit

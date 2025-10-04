@@ -1,0 +1,25 @@
+# Sample registry for testing
+
+servers:
+  test-server:
+    name: "Test MCP Server"
+    description: "A test server for unit tests"
+    category: "testing"
+
+    source:
+      type: "registry"
+      image: "test/server"
+      tag: "latest"
+
+    environment_variables:
+      - name: "TEST_API_KEY"
+        description: "Test API key"
+        required: true
+
+    docker:
+      network_mode: "host"
+
+    health_test:
+      type: "docker"
+
+    startup_timeout: 10

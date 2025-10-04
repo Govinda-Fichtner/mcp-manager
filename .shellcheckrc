@@ -1,0 +1,12 @@
+# ShellCheck configuration for MCP Manager
+
+# Disable SC1090 - Can't follow non-constant source
+# We use dynamic .env file loading which is intentional
+disable=SC1090
+
+# Disable SC2317 - Command appears to be unreachable
+# This is common in test helper functions that are exported
+disable=SC2317
+
+# Set shell to bash
+shell=bash

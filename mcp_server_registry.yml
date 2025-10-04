@@ -1,0 +1,67 @@
+# MCP Server Registry
+# Optimized schema for MVP - see docs/registry-schema.md for full reference
+
+servers:
+  github:
+    name: "GitHub MCP Server"
+    description: "Access GitHub repositories, issues, and pull requests via MCP"
+    category: "development"
+
+    # Source configuration - registry pull (simplest)
+    source:
+      type: "registry"
+      image: "mcp/github"
+      tag: "latest"
+      registry: "ghcr.io"
+
+    # Environment variables required
+    environment_variables:
+      - name: "GITHUB_PERSONAL_ACCESS_TOKEN"
+        description: "GitHub Personal Access Token with repo access"
+        required: true
+
+    # Container configuration
+    docker:
+      network_mode: "host"
+
+    # Health check
+    health_test:
+      type: "docker"  # Just check if image exists for MVP
+
+    # Startup behavior
+    startup_timeout: 30
+
+  obsidian:
+    name: "Obsidian MCP Server"
+    description: "Access and search Obsidian vault notes via MCP"
+    category: "knowledge"
+
+    # Source configuration - build from repository
+    source:
+      type: "repository"
+      repository: "https://github.com/modelcontextprotocol/servers.git"
+      subdirectory: "src/obsidian"
+      dockerfile: "Dockerfile"
+      build_context: "."
+
+    # Environment variables required
+    environment_variables:
+      - name: "OBSIDIAN_VAULT_PATH"
+        description: "Absolute path to Obsidian vault directory"
+        required: true
+
+    # Volume mounts
+    volumes:
+      - source: "${OBSIDIAN_VAULT_PATH}"
+        target: "/vault"
+        mode: "ro"
+
+    # Container configuration
+    docker:
+      network_mode: "host"
+
+    # Health check
+    health_test:
+      type: "docker"
+
+    startup_timeout: 30
