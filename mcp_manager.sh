@@ -479,6 +479,27 @@ cmd_info() {
     repo="$(get_server_field "$server_name" "source.repository")"
     echo "Repository: $repo"
     echo "Build Status: Run 'mcp_manager.sh setup $server_name' to build"
+  elif [[ "$source_type" == "dockerfile" ]]; then
+    local dockerfile_path
+    dockerfile_path="$(get_server_field "$server_name" "source.dockerfile")"
+    image="$(get_server_field "$server_name" "source.image")"
+
+    # Default image name if not specified
+    if [[ -z "$image" || "$image" == "null" ]]; then
+      image="mcp-${server_name}:latest"
+    fi
+
+    echo "Dockerfile: $dockerfile_path"
+    echo "Image Tag: $image"
+
+    if docker_image_exists "$image"; then
+      local image_id
+      image_id="$(docker_image_id "$image")"
+      echo "Local Status: ✓ Built (ID: ${image_id:0:12})"
+    else
+      echo "Local Status: ✗ Not built yet"
+      echo "Build: Run 'mcp_manager.sh setup $server_name' to build"
+    fi
   fi
 
   echo ""
@@ -553,6 +574,22 @@ cmd_health() {
       echo "  Run: mcp_manager.sh setup $server_name"
       return 1
     fi
+  elif [[ "$source_type" == "dockerfile" ]]; then
+    local image
+    image="$(get_server_field "$server_name" "source.image")"
+
+    # Default image name if not specified
+    if [[ -z "$image" || "$image" == "null" ]]; then
+      image="mcp-${server_name}:latest"
+    fi
+
+    if docker_image_exists "$image"; then
+      echo "✓ Docker image built: $image"
+    else
+      echo "✗ Docker image not found: $image"
+      echo "  Run: mcp_manager.sh setup $server_name"
+      return 1
+    fi
   else
     echo "⊘ Build from source - image check skipped"
   fi
@@ -595,6 +632,9 @@ cmd_setup() {
       ;;
     repository)
       setup_from_repository "$server_name"
+      ;;
+    dockerfile)
+      setup_from_dockerfile "$server_name"
       ;;
     *)
       log_error "Unknown source type: $source_type"
@@ -717,6 +757,79 @@ setup_from_repository() {
     log_error "Failed to build image"
     cd "$SCRIPT_DIR" || true
     rm -rf "$tmp_dir"
+    return 1
+  fi
+}
+
+# Setup server from local Dockerfile
+# Arguments:
+#   $1 - Server name
+setup_from_dockerfile() {
+  local server_name="$1"
+
+  log_info "Setting up $server_name from local Dockerfile"
+  log_verbose "Server name: $server_name"
+
+  local dockerfile build_context image_tag
+  dockerfile="$(get_server_field "$server_name" "source.dockerfile")"
+  build_context="$(get_server_field "$server_name" "source.build_context")"
+  image_tag="$(get_server_field "$server_name" "source.image")"
+
+  # Default to mcp-<servername>:latest if not specified
+  if [[ -z "$image_tag" || "$image_tag" == "null" ]]; then
+    image_tag="mcp-${server_name}:latest"
+  fi
+
+  log_verbose "Dockerfile: $dockerfile"
+  log_verbose "Build context: $build_context"
+  log_verbose "Image tag: $image_tag"
+
+  # Resolve paths relative to script directory
+  local dockerfile_path="$SCRIPT_DIR/$dockerfile"
+  local context_path="$SCRIPT_DIR/$build_context"
+
+  log_verbose "Absolute Dockerfile path: $dockerfile_path"
+  log_verbose "Absolute build context path: $context_path"
+
+  # Check if Dockerfile exists
+  if [[ ! -f "$dockerfile_path" ]]; then
+    log_error "Dockerfile not found: $dockerfile_path"
+    return 1
+  fi
+
+  # Check if build context directory exists
+  if [[ ! -d "$context_path" ]]; then
+    log_error "Build context directory not found: $context_path"
+    return 1
+  fi
+
+  # Build Docker image
+  local platform
+  platform="$(detect_platform)"
+
+  log_info "Building Docker image: $image_tag"
+  log_info "Platform: $platform"
+  log_info "Dockerfile: $dockerfile"
+  log_info "Build context: $build_context"
+
+  cd "$context_path" || return 1
+
+  log_verbose "Starting Docker build..."
+  if docker build --platform "$platform" -t "$image_tag" -f "$dockerfile_path" .; then
+    log_info "Successfully built: $image_tag"
+    log_verbose "Returning to script directory"
+    cd "$SCRIPT_DIR" || true
+
+    echo ""
+    echo "Next steps:"
+    echo "  1. Configure environment variables in .env file"
+    echo "  2. Generate config: mcp_manager.sh config $server_name"
+    echo "  3. Check health: mcp_manager.sh health $server_name"
+    return 0
+  else
+    log_error "Failed to build image"
+    log_verbose "Docker build failed - check Dockerfile and build context"
+    cd "$SCRIPT_DIR" || true
     return 1
   fi
 }
@@ -863,8 +976,14 @@ build_config_context() {
     image_name="$(get_server_field "$server_name" "source.image")"
     tag="$(get_server_field "$server_name" "source.tag")"
     image="${registry}/${image_name}:${tag}"
+  elif [[ "$source_type" == "dockerfile" ]]; then
+    # For local Dockerfile build, get image tag from registry or default
+    image="$(get_server_field "$server_name" "source.image")"
+    if [[ -z "$image" || "$image" == "null" ]]; then
+      image="mcp-${server_name}:latest"
+    fi
   else
-    # For build from source, use local tag
+    # For repository build, use local tag
     image="mcp-${server_name}:latest"
   fi
 

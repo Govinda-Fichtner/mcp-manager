@@ -10,7 +10,7 @@ servers:
     # Source configuration - registry pull (simplest)
     source:
       type: "registry"
-      image: "mcp/github"
+      image: "github/github-mcp-server"
       tag: "latest"
       registry: "ghcr.io"
 
@@ -31,30 +31,30 @@ servers:
     # Startup behavior
     startup_timeout: 30
 
-  obsidian:
-    name: "Obsidian MCP Server"
-    description: "Access and search Obsidian vault notes via MCP"
-    category: "knowledge"
+  filesystem:
+    name: "Filesystem MCP Server"
+    description: "Secure file system access via MCP"
+    category: "storage"
 
     # Source configuration - build from repository
     source:
       type: "repository"
       repository: "https://github.com/modelcontextprotocol/servers.git"
-      subdirectory: "src/obsidian"
-      dockerfile: "Dockerfile"
+      subdirectory: "src/filesystem"
+      dockerfile: "src/filesystem/Dockerfile"
       build_context: "."
 
     # Environment variables required
     environment_variables:
-      - name: "OBSIDIAN_VAULT_PATH"
-        description: "Absolute path to Obsidian vault directory"
-        required: true
+      - name: "ALLOWED_DIRECTORIES"
+        description: "Comma-separated list of allowed directories"
+        required: false
 
-    # Volume mounts
+    # Volume mounts - mount directories to access
     volumes:
-      - source: "${OBSIDIAN_VAULT_PATH}"
-        target: "/vault"
-        mode: "ro"
+      - source: "${HOME}"
+        target: "/home/user"
+        mode: "rw"
 
     # Container configuration
     docker:
@@ -65,3 +65,40 @@ servers:
       type: "docker"
 
     startup_timeout: 30
+
+  obsidian:
+    name: "Obsidian MCP Server"
+    description: "Comprehensive Obsidian vault management with tools for reading, writing, searching, and managing notes, tags, and frontmatter through the Local REST API plugin"
+    category: "knowledge"
+
+    # Source configuration - build from custom Dockerfile
+    source:
+      type: "dockerfile"
+      dockerfile: "support/docker/obsidian/Dockerfile"
+      build_context: "support/docker/obsidian"
+      image: "local/obsidian-mcp-server:latest"
+
+    # Environment variables required
+    environment_variables:
+      - name: "OBSIDIAN_API_KEY"
+        description: "API key for Obsidian Local REST API plugin"
+        required: true
+      - name: "OBSIDIAN_BASE_URL"
+        description: "Base URL for Obsidian Local REST API (e.g., http://localhost:27123)"
+        required: true
+      - name: "OBSIDIAN_VERIFY_SSL"
+        description: "Verify SSL certificates (true/false)"
+        required: false
+      - name: "OBSIDIAN_ENABLE_CACHE"
+        description: "Enable caching for better performance (true/false)"
+        required: false
+
+    # Container configuration
+    docker:
+      network_mode: "host"
+
+    # Health check
+    health_test:
+      type: "docker"
+
+    startup_timeout: 20
