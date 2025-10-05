@@ -126,6 +126,26 @@ servers:
 
     startup_timeout: 10
 
+  heroku:
+    name: "Heroku Platform MCP Server"
+    server_type: "api_based"  # Requires API key authentication
+    description: "Official Heroku platform management - app lifecycle, database operations, and infrastructure automation"
+    category: "platform"
+
+    source:
+      type: "repository"  # Clone and build from repository
+      repository: "https://github.com/heroku/heroku-mcp-server.git"
+      image: "local/heroku-mcp-server:latest"
+      build_context: "."
+
+    environment_variables:
+      - "HEROKU_API_KEY"
+
+    docker:
+      network_mode: "host"
+
+    startup_timeout: 10
+
 # Global configuration
 global:
   build_directory: "./mcp_builds"
