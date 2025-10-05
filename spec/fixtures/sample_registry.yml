@@ -1,25 +1,21 @@
 # Sample registry for testing
+# Using new schema (v2.0)
 
 servers:
   test-server:
     name: "Test MCP Server"
+    server_type: "api_based"
     description: "A test server for unit tests"
     category: "testing"
 
     source:
       type: "registry"
-      image: "test/server"
-      tag: "latest"
+      image: "test-image:latest"  # New schema: full image reference
 
     environment_variables:
-      - name: "TEST_API_KEY"
-        description: "Test API key"
-        required: true
+      - "TEST_API_KEY"
 
     docker:
       network_mode: "host"
-
-    health_test:
-      type: "docker"
 
     startup_timeout: 10

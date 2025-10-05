@@ -1,104 +1,72 @@
 # MCP Server Registry
-# Optimized schema for MVP - see docs/registry-schema.md for full reference
+# Schema version: 2.0 (evolved from MacbookSetup patterns)
+# See CLAUDE.md for server type taxonomy and extension patterns
 
 servers:
   github:
     name: "GitHub MCP Server"
-    description: "Access GitHub repositories, issues, and pull requests via MCP"
+    server_type: "api_based"  # Requires API authentication
+    description: "GitHub repository management, issues, pull requests, and code search"
     category: "development"
 
-    # Source configuration - registry pull (simplest)
     source:
       type: "registry"
-      image: "github/github-mcp-server"
-      tag: "latest"
-      registry: "ghcr.io"
+      image: "ghcr.io/github/github-mcp-server:latest"
 
-    # Environment variables required
     environment_variables:
-      - name: "GITHUB_PERSONAL_ACCESS_TOKEN"
-        description: "GitHub Personal Access Token with repo access"
-        required: true
+      - "GITHUB_PERSONAL_ACCESS_TOKEN"
 
-    # Container configuration
     docker:
       network_mode: "host"
 
-    # Health check
-    health_test:
-      type: "docker"  # Just check if image exists for MVP
-
-    # Startup behavior
-    startup_timeout: 30
+    startup_timeout: 10
 
   filesystem:
     name: "Filesystem MCP Server"
-    description: "Secure file system access via MCP"
+    server_type: "mount_based"  # Requires volume mounts
+    description: "Secure file system access with directory restrictions"
     category: "storage"
 
-    # Source configuration - build from repository
     source:
-      type: "repository"
-      repository: "https://github.com/modelcontextprotocol/servers.git"
-      subdirectory: "src/filesystem"
-      dockerfile: "src/filesystem/Dockerfile"
-      build_context: "."
+      type: "registry"
+      image: "mcp/filesystem:latest"
 
-    # Environment variables required
     environment_variables:
-      - name: "ALLOWED_DIRECTORIES"
-        description: "Comma-separated list of allowed directories"
-        required: false
+      - "ALLOWED_DIRECTORIES"
 
-    # Volume mounts - mount directories to access
     volumes:
-      - source: "${HOME}"
-        target: "/home/user"
-        mode: "rw"
+      - "${ALLOWED_DIRECTORIES}:/project"
 
-    # Container configuration
     docker:
       network_mode: "host"
 
-    # Health check
-    health_test:
-      type: "docker"
-
-    startup_timeout: 30
+    startup_timeout: 5
 
   obsidian:
     name: "Obsidian MCP Server"
-    description: "Comprehensive Obsidian vault management with tools for reading, writing, searching, and managing notes, tags, and frontmatter through the Local REST API plugin"
+    server_type: "api_based"  # Uses Obsidian Local REST API
+    description: "Comprehensive Obsidian vault management with tools for reading, writing, searching, and managing notes, tags, and frontmatter"
     category: "knowledge"
 
-    # Source configuration - build from custom Dockerfile
     source:
-      type: "dockerfile"
-      dockerfile: "support/docker/obsidian/Dockerfile"
-      build_context: "support/docker/obsidian"
+      type: "build"
+      repository: "https://github.com/cyanheads/obsidian-mcp-server.git"
       image: "local/obsidian-mcp-server:latest"
+      build_context: "."
 
-    # Environment variables required
     environment_variables:
-      - name: "OBSIDIAN_API_KEY"
-        description: "API key for Obsidian Local REST API plugin"
-        required: true
-      - name: "OBSIDIAN_BASE_URL"
-        description: "Base URL for Obsidian Local REST API (e.g., http://localhost:27123)"
-        required: true
-      - name: "OBSIDIAN_VERIFY_SSL"
-        description: "Verify SSL certificates (true/false)"
-        required: false
-      - name: "OBSIDIAN_ENABLE_CACHE"
-        description: "Enable caching for better performance (true/false)"
-        required: false
+      - "OBSIDIAN_API_KEY"
+      - "OBSIDIAN_BASE_URL"
+      - "OBSIDIAN_VERIFY_SSL"
+      - "OBSIDIAN_ENABLE_CACHE"
 
-    # Container configuration
     docker:
       network_mode: "host"
 
-    # Health check
-    health_test:
-      type: "docker"
+    startup_timeout: 20  # Extended for cache building when OBSIDIAN_ENABLE_CACHE=true
 
-    startup_timeout: 20
+# Global configuration
+global:
+  build_directory: "./mcp_builds"
+  network_name: "mcp-network"
+  default_timeout: 10
