@@ -65,6 +65,26 @@ servers:
 
     startup_timeout: 20  # Extended for cache building when OBSIDIAN_ENABLE_CACHE=true
 
+  circleci:
+    name: "CircleCI MCP Server"
+    server_type: "api_based"  # Requires API token authentication
+    description: "CircleCI pipeline monitoring and management"
+    category: "cicd"
+
+    source:
+      type: "build"
+      repository: "https://github.com/CircleCI-Public/mcp-server-circleci.git"
+      image: "local/mcp-server-circleci:latest"
+      build_context: "."
+
+    environment_variables:
+      - "CIRCLECI_TOKEN"
+
+    docker:
+      network_mode: "host"
+
+    startup_timeout: 10
+
 # Global configuration
 global:
   build_directory: "./mcp_builds"
