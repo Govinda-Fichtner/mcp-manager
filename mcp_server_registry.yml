@@ -146,6 +146,21 @@ servers:
 
     startup_timeout: 10
 
+  terraform:
+    name: "Terraform MCP Server"
+    server_type: "standalone"  # No authentication required
+    description: "Terraform Registry API access - provider documentation, module discovery, and registry information"
+    category: "infrastructure"
+
+    source:
+      type: "registry"  # Pull from registry
+      image: "hashicorp/terraform-mcp-server:latest"
+
+    docker:
+      network_mode: "host"
+
+    startup_timeout: 10
+
 # Global configuration
 global:
   build_directory: "./mcp_builds"
