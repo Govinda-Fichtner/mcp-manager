@@ -106,6 +106,26 @@ servers:
 
     startup_timeout: 10
 
+  figma:
+    name: "Figma Context MCP Server"
+    server_type: "api_based"  # Requires API key authentication
+    description: "Figma design data extraction optimized for AI orchestration with intelligent design filtering"
+    category: "design"
+
+    source:
+      type: "registry"  # Pull from registry
+      image: "ghcr.io/metorial/mcp-container--glips--figma-context-mcp--figma-context-mcp:latest"
+
+    environment_variables:
+      - "FIGMA_API_KEY"
+
+    docker:
+      network_mode: "host"
+      entrypoint: "node"
+      cmd: ["dist/cli.js", "--stdio"]
+
+    startup_timeout: 10
+
 # Global configuration
 global:
   build_directory: "./mcp_builds"
