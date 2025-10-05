@@ -1356,8 +1356,9 @@ build_config_context() {
   local env_vars_json="[]"
   local env_file_path="$SCRIPT_DIR/.env"
 
+  # Schema v2.0: environment_variables is an array of strings
   local env_vars
-  env_vars="$(yq eval ".servers.${server_name}.environment_variables[].name" "$REGISTRY_FILE" 2>/dev/null || echo "")"
+  env_vars="$(yq eval ".servers.${server_name}.environment_variables[]" "$REGISTRY_FILE" 2>/dev/null || echo "")"
 
   if [[ -n "$env_vars" ]]; then
     # Build array of env var names

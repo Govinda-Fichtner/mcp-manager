@@ -30,7 +30,7 @@ Describe 'Config Command'
     It 'includes image information'
       When call build_config_context test-server full
       The output should include '"image":'
-      The output should include 'test/server'
+      The output should include 'test-image:latest'
     End
 
     It 'includes environment variables'
