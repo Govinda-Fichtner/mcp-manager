@@ -47,7 +47,6 @@
   ]
 }
 {%- elif output_mode == "add-json" -%}
-{{ server_id }}
 {"command": "docker", "args": ["run", "--rm", "-i", "--network", "host"
 {%- if env_vars -%}
 , "--env-file", "{{ env_file }}"
