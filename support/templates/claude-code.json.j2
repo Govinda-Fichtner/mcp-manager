@@ -49,9 +49,7 @@
 {%- elif output_mode == "add-json" -%}
 {"command": "docker", "args": ["run", "--rm", "-i", "--network", "host"
 {%- if env_vars -%}
-{%- for env_var in env_vars -%}
-, "-e", "{{ env_var }}"
-{%- endfor -%}
+, "--env-file", "{{ env_file }}"
 {%- endif -%}
 {%- for volume in volumes -%}
 , "-v", "{{ volume.source }}:{{ volume.target }}:{{ volume.mode }}"
