@@ -41,13 +41,45 @@ mock_docker() {
           echo "mcp/github:latest"
           echo "null/test/server:latest"
           echo "test/server:latest"
+          echo "test-image:latest"
         else
           # Return regular table format
           echo "REPOSITORY TAG IMAGE_ID CREATED SIZE"
           echo "mcp/github latest abc123 2 days ago 100MB"
           echo "null/test/server latest def456 1 day ago 50MB"
           echo "test/server latest ghi789 1 day ago 50MB"
+          echo "test-image latest jkl012 1 day ago 40MB"
         fi
+        ;;
+      "run")
+        # Mock docker run - return a fake container ID
+        if [[ "$*" == *"-d"* ]]; then
+          # Detached mode - return container ID
+          echo "abc123def456789"
+        else
+          # Interactive mode - simulate minimal output
+          echo ""
+        fi
+        ;;
+      "logs")
+        # Mock docker logs - return MCP server output
+        echo '{"jsonrpc":"2.0","id":1,"result":{"protocolVersion":"2024-11-05","serverInfo":{"name":"test-server"}}}'
+        ;;
+      "exec")
+        # Mock docker exec - return MCP responses based on what's piped in
+        local input
+        read -r input || true
+        if echo "$input" | grep -q '"method":"resources/list"'; then
+          echo '{"jsonrpc":"2.0","id":2,"result":{"resources":[{"uri":"file:///test","name":"Test Resource"}]}}'
+        elif echo "$input" | grep -q '"method":"tools/list"'; then
+          echo '{"jsonrpc":"2.0","id":3,"result":{"tools":[{"name":"test_tool","description":"A test tool"}]}}'
+        else
+          echo "$input"
+        fi
+        ;;
+      "stop"|"rm")
+        # Mock stop/rm - always succeed silently
+        return 0
         ;;
       "ps")
         echo "CONTAINER_ID IMAGE COMMAND CREATED STATUS"

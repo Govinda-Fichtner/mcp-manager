@@ -33,3 +33,6 @@ logs/
 # State files
 mcp.json
 mcp.json.bak
+
+# Claude Flow metrics and runtime data
+.claude-flow/

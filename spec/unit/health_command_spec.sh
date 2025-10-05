@@ -39,4 +39,60 @@ Describe 'Health Command'
       The stderr should include "not found"
     End
   End
+
+  Describe 'test_mcp_protocol()'
+    It 'calls function with correct parameters'
+      When call test_mcp_protocol "test-server" "test-image:latest"
+      The status should equal 0
+      The stderr should include "MCP protocol"
+      The output should include "abc123def456789"  # Container ID
+    End
+
+    # TODO: Add more specific tests once implementation is complete
+    It 'detects successful protocol handshake'
+      Skip "Awaiting full implementation"
+    End
+
+    It 'handles container startup failure'
+      Skip "Awaiting full implementation"
+    End
+
+    It 'handles timeout waiting for container'
+      Skip "Awaiting full implementation"
+    End
+  End
+
+  Describe 'test_mcp_resources()'
+    It 'calls function with container ID'
+      When call test_mcp_resources "container-id"
+      The status should equal 0
+      The output should include "resources"
+    End
+
+    # TODO: Add more specific tests once implementation is complete
+    It 'handles empty resource list'
+      Skip "Awaiting full implementation"
+    End
+
+    It 'handles resource query failure'
+      Skip "Awaiting full implementation"
+    End
+  End
+
+  Describe 'test_mcp_tools()'
+    It 'calls function with container ID'
+      When call test_mcp_tools "container-id"
+      The status should equal 0
+      The output should include "tools"
+    End
+
+    # TODO: Add more specific tests once implementation is complete
+    It 'handles empty tool list'
+      Skip "Awaiting full implementation"
+    End
+
+    It 'handles tool query failure'
+      Skip "Awaiting full implementation"
+    End
+  End
 End
