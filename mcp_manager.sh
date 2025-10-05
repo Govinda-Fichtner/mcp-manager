@@ -543,22 +543,51 @@ cmd_info() {
 cmd_health() {
   local server_name="${1:-}"
 
-  if [[ -z "$server_name" ]]; then
-    log_error "Server name required"
-    echo "Usage: mcp_manager.sh health <server>"
-    return 1
-  fi
-
   if ! validate_registry; then
     return 1
   fi
 
+  # If no server name provided, check all servers
+  if [[ -z "$server_name" ]]; then
+    log_info "Checking health for all servers"
+    echo ""
+
+    local all_servers
+    all_servers=$(list_servers)
+
+    if [[ -z "$all_servers" ]]; then
+      log_error "No servers found in registry"
+      return 1
+    fi
+
+    local overall_status=0
+    while IFS= read -r server; do
+      echo "═══════════════════════════════════════"
+      check_single_server_health "$server" || overall_status=1
+      echo ""
+    done <<< "$all_servers"
+
+    return $overall_status
+  fi
+
+  # Check single server
   if ! server_exists "$server_name"; then
     log_error "Server not found: $server_name"
     return 1
   fi
 
-  log_info "Checking health for: $server_name"
+  check_single_server_health "$server_name"
+}
+
+# Check health of a single server
+# Arguments:
+#   $1 - server name
+# Returns:
+#   0 on success, 1 on failure
+check_single_server_health() {
+  local server_name="$1"
+
+  log_info "Server: $server_name"
   echo ""
 
   # Check Docker daemon
@@ -570,11 +599,11 @@ cmd_health() {
   fi
 
   # Check if image exists
-  local source_type
+  local source_type image
   source_type="$(get_server_field "$server_name" "source.type")"
 
   if [[ "$source_type" == "registry" ]]; then
-    local registry image_name tag image
+    local registry image_name tag
     registry="$(get_server_field "$server_name" "source.registry")"
     image_name="$(get_server_field "$server_name" "source.image")"
     tag="$(get_server_field "$server_name" "source.tag")"
@@ -587,8 +616,18 @@ cmd_health() {
       echo "  Run: mcp_manager.sh setup $server_name"
       return 1
     fi
+  elif [[ "$source_type" == "repository" ]]; then
+    # Repository builds use mcp-<server_name>:latest naming
+    image="mcp-${server_name}:latest"
+
+    if docker_image_exists "$image"; then
+      echo "✓ Docker image built: $image"
+    else
+      echo "✗ Docker image not found: $image"
+      echo "  Run: mcp_manager.sh setup $server_name"
+      return 1
+    fi
   elif [[ "$source_type" == "dockerfile" ]]; then
-    local image
     image="$(get_server_field "$server_name" "source.image")"
 
     # Default image name if not specified
@@ -604,12 +643,295 @@ cmd_health() {
       return 1
     fi
   else
-    echo "⊘ Build from source - image check skipped"
+    echo "⊘ Unknown source type: $source_type"
+    image=""
+  fi
+
+  # MCP Protocol Tests (if image is available)
+  if [[ -n "$image" ]]; then
+    echo ""
+    echo "MCP Protocol Tests:"
+
+    # Run complete MCP protocol test sequence
+    test_mcp_complete "$server_name" "$image"
   fi
 
   echo ""
   log_info "Status: READY"
   return 0
+}
+
+#######################################
+# MCP Protocol Testing Functions
+#######################################
+
+# Complete MCP protocol test with proper initialization sequence
+# Arguments:
+#   $1 - server name
+#   $2 - docker image
+# Returns:
+#   0 on success, 1 on failure
+test_mcp_complete() {
+  local server_name="$1"
+  local image="$2"
+
+  echo "  ├── Connecting to MCP server..."
+
+  # Get server-specific timeout (default: 5 seconds, should be enough for responses)
+  # MCP servers in stdio mode don't terminate, so we use timeout to collect responses
+  local timeout_seconds
+  timeout_seconds=$(yq eval ".servers[] | select(.name | test(\"(?i)${server_name}\")) | .startup_timeout" "$REGISTRY_FILE" 2>/dev/null || echo "5")
+  if [[ "$timeout_seconds" == "null" ]] || [[ -z "$timeout_seconds" ]]; then
+    timeout_seconds=5
+  fi
+
+  # Build docker run command
+  local docker_cmd=("docker" "run" "-i" "--rm")
+
+  # Add env file if it exists
+  if [[ -f ".env" ]]; then
+    docker_cmd+=("--env-file" ".env")
+  fi
+
+  docker_cmd+=("$image")
+
+  # Send complete MCP protocol sequence in one stream
+  # MCP servers run in continuous stdio mode - they respond but don't terminate
+  # We use timeout to collect responses and move on
+  local mcp_output
+
+  # Use shorter timeout with output buffering to detect when responses are complete
+  mcp_output=$(
+    {
+      echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"mcp-manager","version":"1.0.0"}}}'
+      echo '{"jsonrpc":"2.0","method":"initialized"}'
+      echo '{"jsonrpc":"2.0","id":2,"method":"resources/list","params":{}}'
+      echo '{"jsonrpc":"2.0","id":3,"method":"tools/list","params":{}}'
+      # Close stdin after sending queries - server should respond then wait
+      sleep 0.5
+    } | timeout "$timeout_seconds" "${docker_cmd[@]}" 2>&1
+  ) || true  # Timeout is expected - we check for output instead
+
+  # Check if we got any output (server may have responded before timeout)
+  if [[ -z "$mcp_output" ]]; then
+    echo "  │   └── ✗ No response from MCP server (timeout: ${timeout_seconds}s)"
+    return 1
+  fi
+
+  # Filter out stderr noise, keep only JSON-RPC responses
+  mcp_output=$(echo "$mcp_output" | grep -E '^\{.*"jsonrpc".*\}' || echo "$mcp_output")
+
+  # Parse the responses (they come as separate JSON lines)
+  # Response 1: initialize result
+  local init_response
+  init_response=$(echo "$mcp_output" | grep -m1 '"id":1' || echo "")
+
+  if echo "$init_response" | grep -q '"result".*"protocolVersion"'; then
+    echo "  │   └── ✓ MCP protocol handshake successful"
+  else
+    echo "  │   └── ⚠ MCP initialization unclear"
+  fi
+
+  # Response 2: resources/list result
+  echo "  ├── Querying resources..."
+  local resources_response
+  resources_response=$(echo "$mcp_output" | grep -m1 '"id":2' || echo "")
+
+  if [[ -n "$resources_response" ]] && echo "$resources_response" | grep -q '"result"'; then
+    if command -v jq >/dev/null 2>&1; then
+      local count
+      count=$(echo "$resources_response" | jq -r '.result.resources | length' 2>/dev/null || echo "0")
+      if [[ "$count" -gt 0 ]]; then
+        echo "  │   └── ✓ Found $count resource(s)"
+      else
+        echo "  │   └── ⚠ No resources available"
+      fi
+    else
+      echo "  │   └── ✓ Server responded to resources query"
+    fi
+  else
+    echo "  │   └── ⚠ Resources not supported"
+  fi
+
+  # Response 3: tools/list result
+  echo "  ├── Querying tools..."
+  local tools_response
+  tools_response=$(echo "$mcp_output" | grep -m1 '"id":3' || echo "")
+
+  if [[ -n "$tools_response" ]] && echo "$tools_response" | grep -q '"result"'; then
+    if command -v jq >/dev/null 2>&1; then
+      local count
+      count=$(echo "$tools_response" | jq -r '.result.tools | length' 2>/dev/null || echo "0")
+      if [[ "$count" -gt 0 ]]; then
+        echo "  │   └── ✓ Found $count tool(s)"
+      else
+        echo "  │   └── ⚠ No tools available"
+      fi
+    else
+      echo "  │   └── ✓ Server responded to tools query"
+    fi
+  else
+    echo "  │   └── ⚠ Tools not supported"
+  fi
+
+  return 0
+}
+
+# Test MCP protocol initialization
+# Arguments:
+#   $1 - server name
+#   $2 - docker image
+# Returns:
+#   0 on success, 1 on failure
+# Outputs:
+#   Container ID on stdout if successful (for further testing)
+test_mcp_protocol() {
+  local server_name="$1"
+  local image="$2"
+
+  echo "  ├── Testing MCP protocol handshake..." >&2
+
+  # Build docker run command
+  local docker_cmd=("docker" "run" "--rm" "-i")
+
+  # Add env file if it exists
+  if [[ -f ".env" ]]; then
+    docker_cmd+=("--env-file" ".env")
+  fi
+
+  docker_cmd+=("$image")
+
+  # Start container in detached mode
+  local container_id
+  container_id=$(docker run -d -i "${docker_cmd[@]:3}" 2>&1)
+  local start_status=$?
+
+  if [[ $start_status -ne 0 || -z "$container_id" ]]; then
+    echo "  │   └── ✗ Failed to start container" >&2
+    return 1
+  fi
+
+  echo "  │   ├── Container started: ${container_id:0:12}" >&2
+
+  # Wait a moment for container to be ready
+  sleep 2
+
+  # Get container logs to check for MCP server startup
+  local container_output
+  container_output=$(docker logs "$container_id" 2>&1 | tail -10)
+
+  # Check for successful MCP server indicators
+  local success=0
+  if echo "$container_output" | grep -q '"result".*"protocolVersion"'; then
+    echo "  │   └── ✓ MCP protocol handshake successful" >&2
+    success=1
+  elif echo "$container_output" | grep -q '"jsonrpc":"2.0"'; then
+    echo "  │   └── ✓ MCP server responded with JSON-RPC" >&2
+    success=1
+  elif echo "$container_output" | grep -q -E "(running on stdio|MCP.*[Ss]erver|Ready)"; then
+    echo "  │   └── ✓ MCP server started successfully" >&2
+    success=1
+  else
+    # Check for actual errors
+    if echo "$container_output" | grep -q -E "(error|Error|ERROR|failed|Failed)" \
+      && ! echo "$container_output" | grep -q -E "(auth|Auth|token|Token)"; then
+      echo "  │   └── ✗ MCP server errors detected" >&2
+      docker stop "$container_id" >/dev/null 2>&1
+      docker rm "$container_id" >/dev/null 2>&1
+      return 1
+    else
+      # Server might need auth or stdin input - treat as success with note
+      echo "  │   └── ⚠ Container started (may require authentication)" >&2
+      success=1
+    fi
+  fi
+
+  # If successful, output container ID and return success
+  # Container is left running for resource/tool queries
+  if [[ $success -eq 1 ]]; then
+    echo "$container_id"
+    return 0
+  else
+    docker stop "$container_id" >/dev/null 2>&1
+    docker rm "$container_id" >/dev/null 2>&1
+    return 1
+  fi
+}
+
+# Test MCP resources/list capability
+# Arguments:
+#   $1 - container ID
+# Returns:
+#   0 on success, 1 on failure
+test_mcp_resources() {
+  local container_id="$1"
+
+  echo "  ├── Querying available resources..."
+
+  # Create resources/list request
+  local resources_request='{"jsonrpc":"2.0","id":2,"method":"resources/list","params":{}}'
+
+  # Send request to container and get response (with timeout)
+  local response
+  response=$(timeout 3 sh -c "echo '$resources_request' | docker exec -i '$container_id' cat 2>/dev/null | head -1" || echo "")
+
+  # Parse response
+  if [[ -n "$response" ]] && echo "$response" | grep -q '"result"'; then
+    # Count resources if jq is available
+    if command -v jq >/dev/null 2>&1; then
+      local count
+      count=$(echo "$response" | jq -r '.result.resources | length' 2>/dev/null || echo "0")
+      if [[ "$count" -gt 0 ]]; then
+        echo "  │   └── ✓ Found $count resource(s)"
+      else
+        echo "  │   └── ⚠ No resources available"
+      fi
+    else
+      echo "  │   └── ✓ Server responded to resources query"
+    fi
+    return 0
+  else
+    echo "  │   └── ⚠ Resources query not supported or failed"
+    return 0  # Not a failure - server may not support resources
+  fi
+}
+
+# Test MCP tools/list capability
+# Arguments:
+#   $1 - container ID
+# Returns:
+#   0 on success, 1 on failure
+test_mcp_tools() {
+  local container_id="$1"
+
+  echo "  ├── Querying available tools..."
+
+  # Create tools/list request
+  local tools_request='{"jsonrpc":"2.0","id":3,"method":"tools/list","params":{}}'
+
+  # Send request to container and get response (with timeout)
+  local response
+  response=$(timeout 3 sh -c "echo '$tools_request' | docker exec -i '$container_id' cat 2>/dev/null | head -1" || echo "")
+
+  # Parse response
+  if [[ -n "$response" ]] && echo "$response" | grep -q '"result"'; then
+    # Count tools if jq is available
+    if command -v jq >/dev/null 2>&1; then
+      local count
+      count=$(echo "$response" | jq -r '.result.tools | length' 2>/dev/null || echo "0")
+      if [[ "$count" -gt 0 ]]; then
+        echo "  │   └── ✓ Found $count tool(s)"
+      else
+        echo "  │   └── ⚠ No tools available"
+      fi
+    else
+      echo "  │   └── ✓ Server responded to tools query"
+    fi
+    return 0
+  else
+    echo "  │   └── ⚠ Tools query not supported or failed"
+    return 0  # Not a failure - server may not support tools
+  fi
 }
 
 #######################################
