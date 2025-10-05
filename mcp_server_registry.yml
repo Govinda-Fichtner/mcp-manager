@@ -85,6 +85,27 @@ servers:
 
     startup_timeout: 10
 
+  appsignal:
+    name: "AppSignal MCP Server"
+    server_type: "api_based"  # Requires API key authentication
+    description: "AppSignal application performance monitoring and error tracking"
+    category: "monitoring"
+
+    source:
+      type: "repository"  # Clone and build from repository
+      repository: "https://github.com/appsignal/appsignal-mcp"
+      image: "local/appsignal-mcp-server:latest"
+      dockerfile: "support/docker/appsignal/Dockerfile"
+      build_context: "."
+
+    environment_variables:
+      - "APPSIGNAL_API_KEY"
+
+    docker:
+      network_mode: "host"
+
+    startup_timeout: 10
+
 # Global configuration
 global:
   build_directory: "./mcp_builds"
