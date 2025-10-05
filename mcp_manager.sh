@@ -278,6 +278,13 @@ OPTIONS:
   --registry <file>       Use custom registry file
   --env <file>            Use custom .env file
 
+CONFIG COMMAND OPTIONS:
+  --format <format>       Output format: claude-code, claude-desktop, gemini-cli (default: claude-code)
+  --full                  Generate full config with wrapper (default)
+  --snippet               Generate snippet for manual paste into existing config
+  --add-json              Generate JSON for 'claude mcp add-json' command (claude-code only)
+  --output <file>         Write config to file instead of stdout
+
 EXAMPLES:
   # List available servers
   mcp_manager.sh list
@@ -285,8 +292,14 @@ EXAMPLES:
   # Setup GitHub server
   mcp_manager.sh setup github
 
-  # Generate Claude Code config
-  mcp_manager.sh config github --format claude-code
+  # Generate full Claude Code config (with mcpServers wrapper)
+  mcp_manager.sh config github --format claude-code --full
+
+  # Generate snippet to paste into existing config
+  mcp_manager.sh config github --format claude-code --snippet
+
+  # Generate JSON for 'claude mcp add-json' command
+  mcp_manager.sh config obsidian --add-json | claude mcp add-json obsidian
 
   # Check server health
   mcp_manager.sh health github
@@ -840,8 +853,9 @@ setup_from_dockerfile() {
 
 cmd_config() {
   local server_name="${1:-}"
-  local format="${2:---format}"
-  local output_mode="${3:-snippet}"
+  local format="claude-code"
+  local output_mode="full"
+  local output_file=""
 
   # Parse arguments
   while [[ $# -gt 0 ]]; do
@@ -858,8 +872,12 @@ cmd_config() {
         output_mode="full"
         shift
         ;;
+      --add-json)
+        output_mode="add-json"
+        shift
+        ;;
       --output)
-        local output_file="$2"
+        output_file="$2"
         shift 2
         ;;
       *)
@@ -873,7 +891,13 @@ cmd_config() {
 
   if [[ -z "$server_name" ]]; then
     log_error "Server name required"
-    echo "Usage: mcp_manager.sh config <server> --format <claude-code|claude-desktop|gemini-cli> [--snippet|--full] [--output <file>]"
+    echo "Usage: mcp_manager.sh config <server> --format <claude-code|claude-desktop|gemini-cli> [--snippet|--full|--add-json] [--output <file>]"
+    return 1
+  fi
+
+  # Validate --add-json is only used with claude-code format
+  if [[ "$output_mode" == "add-json" && "$format" != "claude-code" ]]; then
+    log_error "--add-json is only supported with --format claude-code"
     return 1
   fi
 
@@ -906,7 +930,9 @@ cmd_config() {
 
   # Build template context
   local context_json
-  context_json="$(build_config_context "$server_name")"
+  context_json="$(build_config_context "$server_name" "$output_mode")"
+
+  log_verbose "Template context: $context_json"
 
   # Select template
   local template_file="$SCRIPT_DIR/support/templates/${format}.json.j2"
@@ -927,29 +953,48 @@ cmd_config() {
   fi
 
   # Output configuration
-  if [[ -n "${output_file:-}" ]]; then
+  if [[ -n "$output_file" ]]; then
     echo "$config_output" > "$output_file"
     log_info "Configuration written to: $output_file"
   else
-    echo ""
-    log_info "Generated configuration for $server_name ($format format):"
-    echo ""
-    echo "$config_output"
-    echo ""
+    # For --add-json mode, output only the JSON (no preamble)
+    if [[ "$output_mode" == "add-json" ]]; then
+      echo "$config_output"
+    else
+      echo ""
+      log_info "Generated configuration for $server_name ($format format, $output_mode mode):"
+      echo ""
+      echo "$config_output"
+      echo ""
 
-    if [[ "$output_mode" == "snippet" ]]; then
-      echo "# To use this configuration:"
-      case "$format" in
-        claude-code)
-          echo "#   Add the above to your .claude-code.json file under 'mcpServers'"
-          ;;
-        claude-desktop)
-          echo "#   Add the above to ~/.config/claude/claude_desktop_config.json under 'mcpServers'"
-          ;;
-        gemini-cli)
-          echo "#   Add the above to your gemini-cli config file"
-          ;;
-      esac
+      # Show usage hints
+      if [[ "$output_mode" == "snippet" ]]; then
+        echo "# To use this configuration:"
+        case "$format" in
+          claude-code)
+            echo "#   Add the above to your .claude-code.json file under 'mcpServers'"
+            ;;
+          claude-desktop)
+            echo "#   Add the above to ~/.config/claude/claude_desktop_config.json under 'mcpServers'"
+            ;;
+          gemini-cli)
+            echo "#   Add the above to your gemini-cli config file under 'mcp_servers'"
+            ;;
+        esac
+      elif [[ "$output_mode" == "full" ]]; then
+        echo "# To use this configuration:"
+        case "$format" in
+          claude-code)
+            echo "#   Save to .claude-code.json or merge with existing config"
+            ;;
+          claude-desktop)
+            echo "#   Save to ~/.config/claude/claude_desktop_config.json or merge with existing config"
+            ;;
+          gemini-cli)
+            echo "#   Save to your gemini-cli config file or merge with existing config"
+            ;;
+        esac
+      fi
     fi
   fi
 }
@@ -957,10 +1002,12 @@ cmd_config() {
 # Build configuration context for Jinja2 template
 # Arguments:
 #   $1 - Server name
+#   $2 - Output mode (full|snippet|add-json)
 # Outputs:
 #   JSON context for template
 build_config_context() {
   local server_name="$1"
+  local output_mode="${2:-full}"
 
   # Get server metadata
   local name desc source_type
@@ -1014,6 +1061,7 @@ build_config_context() {
     --arg description "$desc" \
     --arg image "$image" \
     --arg env_file "$env_file_path" \
+    --arg output_mode "$output_mode" \
     --argjson env_vars "$env_vars_json" \
     --argjson volumes "$volumes_json" \
     '{
@@ -1023,7 +1071,8 @@ build_config_context() {
       env_file: (if ($env_vars | length > 0) then $env_file else null end),
       env_vars: $env_vars,
       volumes: (if ($volumes | length > 0) then $volumes else [] end),
-      container_args: []
+      container_args: [],
+      output_mode: $output_mode
     }'
 }
 

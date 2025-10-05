@@ -1,3 +1,4 @@
+{%- if output_mode == "full" -%}
 {
   "mcpServers": {
     "{{ server_id }}": {
@@ -23,3 +24,69 @@
     }
   }
 }
+{%- elif output_mode == "snippet" -%}
+"{{ server_id }}": {
+  "command": "docker",
+  "args": [
+    "run",
+    "--rm",
+    "-i",
+    "--network", "host"
+{%- if env_vars %},
+    "--env-file", "{{ env_file }}"
+{%- endif %}
+{%- for volume in volumes %},
+    "-v", "{{ volume.source }}:{{ volume.target }}:{{ volume.mode }}"
+{%- endfor %},
+    "{{ image }}"
+{%- if container_args %}
+{%- for arg in container_args %},
+    "{{ arg }}"
+{%- endfor %}
+{%- endif %}
+  ]
+}
+{%- elif output_mode == "add-json" -%}
+{"command": "docker", "args": ["run", "--rm", "-i", "--network", "host"
+{%- if env_vars -%}
+{%- for env_var in env_vars -%}
+, "-e", "{{ env_var }}"
+{%- endfor -%}
+{%- endif -%}
+{%- for volume in volumes -%}
+, "-v", "{{ volume.source }}:{{ volume.target }}:{{ volume.mode }}"
+{%- endfor -%}
+, "{{ image }}"
+{%- if container_args -%}
+{%- for arg in container_args -%}
+, "{{ arg }}"
+{%- endfor -%}
+{%- endif -%}
+]}
+{%- else -%}
+{
+  "mcpServers": {
+    "{{ server_id }}": {
+      "command": "docker",
+      "args": [
+        "run",
+        "--rm",
+        "-i",
+        "--network", "host"
+{%- if env_vars %},
+        "--env-file", "{{ env_file }}"
+{%- endif %}
+{%- for volume in volumes %},
+        "-v", "{{ volume.source }}:{{ volume.target }}:{{ volume.mode }}"
+{%- endfor %},
+        "{{ image }}"
+{%- if container_args %}
+{%- for arg in container_args %},
+        "{{ arg }}"
+{%- endfor %}
+{%- endif %}
+      ]
+    }
+  }
+}
+{%- endif -%}
