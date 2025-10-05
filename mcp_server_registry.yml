@@ -49,7 +49,7 @@ servers:
     category: "knowledge"
 
     source:
-      type: "build"
+      type: "repository"  # Clone and build from repository
       repository: "https://github.com/cyanheads/obsidian-mcp-server.git"
       image: "local/obsidian-mcp-server:latest"
       build_context: "."
@@ -72,7 +72,7 @@ servers:
     category: "cicd"
 
     source:
-      type: "build"
+      type: "repository"  # Clone and build from repository
       repository: "https://github.com/CircleCI-Public/mcp-server-circleci.git"
       image: "local/mcp-server-circleci:latest"
       build_context: "."

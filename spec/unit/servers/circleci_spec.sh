@@ -40,9 +40,9 @@ Describe 'CircleCI MCP Server'
       The output should equal "cicd"
     End
 
-    It 'parses source type as build'
+    It 'parses source type as repository'
       When call get_server_field "circleci" "source.type"
-      The output should equal "build"
+      The output should equal "repository"
     End
 
     It 'parses repository URL'

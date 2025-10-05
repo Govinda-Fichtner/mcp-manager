@@ -1018,6 +1018,16 @@ setup_from_repository() {
   dockerfile="$(get_server_field "$server_name" "source.dockerfile")"
   build_context="$(get_server_field "$server_name" "source.build_context")"
 
+  # Default to standard Dockerfile in build context if not specified
+  if [[ -z "$dockerfile" || "$dockerfile" == "null" ]]; then
+    dockerfile="Dockerfile"
+  fi
+
+  # Default to current directory if build_context not specified
+  if [[ -z "$build_context" || "$build_context" == "null" ]]; then
+    build_context="."
+  fi
+
   log_verbose "Repository: $repo"
   log_verbose "Subdirectory: $subdirectory"
   log_verbose "Dockerfile path: $dockerfile"
