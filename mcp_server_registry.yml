@@ -224,6 +224,193 @@ servers:
 
     startup_timeout: 10
 
+  rails:
+    name: "Rails MCP Server"
+    server_type: "mount_based"  # Requires Docker volume mounts
+    description: "Rails project management and inspection"
+    category: "development"
+
+    source:
+      type: "registry"  # Pull from registry
+      image: "local/mcp-server-rails:latest"
+
+    environment_variables:
+      - "RAILS_MCP_ROOT_PATH"
+      - "RAILS_MCP_CONFIG_HOME"
+
+    volumes:
+      - "RAILS_MCP_ROOT_PATH:/rails-projects"
+      - "RAILS_MCP_CONFIG_HOME:/app/.config/rails-mcp"
+
+    docker:
+      network_mode: "host"
+
+    startup_timeout: 10
+
+  sonarqube:
+    name: "SonarQube MCP Server"
+    server_type: "mount_based"  # Requires Docker volume mounts
+    description: "SonarQube Cloud/Server integration for code quality analysis, issue management, and project metrics"
+    category: "code"
+
+    source:
+      type: "repository"  # Clone and build from repository
+      repository: "https://github.com/SonarSource/sonarqube-mcp-server.git"
+      image: "local/sonarqube-mcp-server:latest"
+      build_context: "."
+
+    environment_variables:
+      - "SONARQUBE_TOKEN"
+      - "SONARQUBE_ORG"
+      - "SONARQUBE_URL"
+      - "SONARQUBE_STORAGE_PATH"
+
+    volumes:
+      - "SONARQUBE_STORAGE_PATH:/app/storage"
+
+    docker:
+      network_mode: "host"
+
+    startup_timeout: 10
+
+  playwright:
+    name: "Playwright MCP Server"
+    server_type: "mount_based"  # Requires Docker volume mounts
+    description: "Microsoft Playwright browser automation for AI-orchestrated web testing and automation workflows"
+    category: "automation"
+
+    source:
+      type: "repository"  # Clone and build from repository
+      repository: "https://github.com/microsoft/playwright-mcp.git"
+      image: "local/playwright-mcp-server:latest"
+      build_context: "."
+
+    environment_variables:
+      - "PLAYWRIGHT_BROWSER_PATH"
+      - "PLAYWRIGHT_SCREENSHOTS_PATH"
+
+    volumes:
+      - "PLAYWRIGHT_SCREENSHOTS_PATH:/app/output"
+
+    docker:
+      network_mode: "host"
+      cmd: ["--headless", "--browser", "chromium", "--no-sandbox", "--output-dir", "/app/output"]
+
+    startup_timeout: 10
+
+  linear:
+    name: "Linear MCP Server"
+    server_type: "remote"  # Remote Cloudflare Workers endpoint
+    description: "Linear project management via Cloudflare-hosted MCP server"
+    category: "project_management"
+
+    source:
+      type: "remote"  # Remote SSE endpoint
+      url: "https://mcp.linear.app/sse"
+
+    docker:
+      network_mode: "host"
+
+    startup_timeout: 10
+
+  recraft:
+    name: "Recraft MCP Server"
+    server_type: "mount_based"  # Requires Docker volume mounts
+    description: "AI-powered image generation and manipulation via Recraft AI"
+    category: "ai_image"
+
+    source:
+      type: "repository"  # Clone and build from repository
+      repository: "https://github.com/recraft-ai/mcp-recraft-server.git"
+      image: "local/recraft-mcp-server:latest"
+      dockerfile: "support/docker/recraft/Dockerfile"
+      build_context: "."
+
+    environment_variables:
+      - "RECRAFT_API_KEY"
+      - "IMAGE_STORAGE_DIRECTORY"
+      - "RECRAFT_REMOTE_RESULTS_STORAGE"
+
+    volumes:
+      - "IMAGE_STORAGE_DIRECTORY:IMAGE_STORAGE_DIRECTORY"
+
+    docker:
+      network_mode: "host"
+
+    startup_timeout: 10
+
+  docker:
+    name: "Docker MCP Server"
+    server_type: "privileged"  # Requires special permissions
+    description: "Docker container management and inspection"
+    category: "system"
+
+    source:
+      type: "repository"  # Clone and build from repository
+      repository: "https://github.com/ckreiling/mcp-server-docker"
+      image: "mcp-server-docker:latest"
+      build_context: "."
+
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock"
+
+    docker:
+      network_mode: "host"
+
+    startup_timeout: 10
+
+  kubernetes:
+    name: "Kubernetes MCP Server"
+    server_type: "privileged"  # Requires special permissions
+    description: "Native Go-based Kubernetes and OpenShift management - advanced community K8s MCP server"
+    category: "infrastructure"
+
+    source:
+      type: "repository"  # Clone and build from repository
+      repository: "https://github.com/manusa/kubernetes-mcp-server.git"
+      image: "local/mcp-server-kubernetes:latest"
+      build_context: "."
+
+    environment_variables:
+      - "KUBECONFIG"
+      - "K8S_NAMESPACE"
+      - "K8S_CONTEXT"
+
+    volumes:
+      - "KUBECONFIG_HOST:/root/.kube/config:ro"
+
+    docker:
+      network_mode: "host"
+      cmd: ["--log-level", "0"]
+
+    startup_timeout: 10
+
+  terraform-cli-controller:
+    name: "Terraform CLI Controller"
+    server_type: "privileged"  # Requires special permissions
+    description: "Rust-based CLI tool for AI assistants to manage Terraform environments with configuration analysis"
+    category: "infrastructure"
+
+    source:
+      type: "repository"  # Clone and build from repository
+      repository: "https://github.com/nwiizo/tfmcp.git"
+      image: "local/terraform-cli-controller:latest"
+      build_context: "."
+
+    environment_variables:
+      - "TERRAFORM_HOST_DIR"
+
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock"
+      - "HOME/.aws:/root/.aws:ro"
+      - "TERRAFORM_HOST_DIR:/workspace"
+
+    docker:
+      network_mode: "host"
+      cmd: ["mcp"]
+
+    startup_timeout: 10
+
 # Global configuration
 global:
   build_directory: "./mcp_builds"
