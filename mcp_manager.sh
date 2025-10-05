@@ -472,20 +472,8 @@ cmd_info() {
 
   # Get image information
   if [[ "$source_type" == "registry" ]]; then
-    # New schema: source.image contains full reference (e.g., "ghcr.io/org/image:tag")
-    # Old schema: separate source.registry, source.image, source.tag
+    # Schema v2.0: source.image contains full reference (e.g., "ghcr.io/org/image:tag")
     image="$(get_server_field "$server_name" "source.image")"
-
-    # Check if using old schema (has separate registry field)
-    local registry
-    registry="$(get_server_field "$server_name" "source.registry")"
-    if [[ -n "$registry" && "$registry" != "null" ]]; then
-      # Old schema: combine fields
-      local image_name tag
-      image_name="$image"
-      tag="$(get_server_field "$server_name" "source.tag")"
-      image="${registry}/${image_name}:${tag}"
-    fi
 
     echo "Registry Image: $image"
 
@@ -612,20 +600,8 @@ check_single_server_health() {
   source_type="$(get_server_field "$server_name" "source.type")"
 
   if [[ "$source_type" == "registry" ]]; then
-    # New schema: source.image contains full reference
-    # Old schema: separate source.registry, source.image, source.tag
+    # Schema v2.0: source.image contains full reference
     image="$(get_server_field "$server_name" "source.image")"
-
-    # Check if using old schema
-    local registry
-    registry="$(get_server_field "$server_name" "source.registry")"
-    if [[ -n "$registry" && "$registry" != "null" ]]; then
-      # Old schema: combine fields
-      local image_name tag
-      image_name="$image"
-      tag="$(get_server_field "$server_name" "source.tag")"
-      image="${registry}/${image_name}:${tag}"
-    fi
 
     if docker_image_exists "$image"; then
       echo "✓ Docker image present: $image"
@@ -1005,24 +981,9 @@ setup_from_registry() {
   log_info "Setting up $server_name from registry"
   log_verbose "Server name: $server_name"
 
-  # New schema: source.image contains full reference
-  # Old schema: separate source.registry, source.image, source.tag
+  # Schema v2.0: source.image contains full reference
   local image
   image="$(get_server_field "$server_name" "source.image")"
-
-  # Check if using old schema
-  local registry
-  registry="$(get_server_field "$server_name" "source.registry")"
-  if [[ -n "$registry" && "$registry" != "null" ]]; then
-    # Old schema: combine fields
-    local image_name tag
-    image_name="$image"
-    tag="$(get_server_field "$server_name" "source.tag")"
-    image="${registry}/${image_name}:${tag}"
-    log_verbose "Registry: $registry"
-    log_verbose "Image name: $image_name"
-    log_verbose "Tag: $tag"
-  fi
 
   log_verbose "Full image: $image"
 
@@ -1368,20 +1329,8 @@ build_config_context() {
   # Determine image name
   local image
   if [[ "$source_type" == "registry" ]]; then
-    # New schema: source.image contains full reference
-    # Old schema: separate source.registry, source.image, source.tag
+    # Schema v2.0: source.image contains full reference
     image="$(get_server_field "$server_name" "source.image")"
-
-    # Check if using old schema
-    local registry
-    registry="$(get_server_field "$server_name" "source.registry")"
-    if [[ -n "$registry" && "$registry" != "null" ]]; then
-      # Old schema: combine fields
-      local image_name tag
-      image_name="$image"
-      tag="$(get_server_field "$server_name" "source.tag")"
-      image="${registry}/${image_name}:${tag}"
-    fi
   elif [[ "$source_type" == "dockerfile" ]]; then
     # For local Dockerfile build, get image tag from registry or default
     image="$(get_server_field "$server_name" "source.image")"
