@@ -72,4 +72,21 @@ Describe 'Config Command'
       Skip "Requires command-line argument parsing - integration test"
     End
   End
+
+  Describe 'cmd_config() with --add-json'
+    It 'includes server name before JSON for claude mcp add-json'
+      When call cmd_config test-server --format claude-code --add-json
+      The status should equal 0
+      # Output should start with server name followed by space and JSON
+      The output should start with "test-server "
+      The output should include '{"command":'
+    End
+
+    It 'outputs format compatible with claude mcp add-json command'
+      When call cmd_config test-server --format claude-code --add-json
+      # Verify the output starts with server name and contains valid JSON
+      The output should include 'test-server {"command": "docker"'
+      The output should include '"args":'
+    End
+  End
 End
