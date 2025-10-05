@@ -299,7 +299,7 @@ EXAMPLES:
   mcp_manager.sh config github --format claude-code --snippet
 
   # Generate JSON for 'claude mcp add-json' command
-  mcp_manager.sh config obsidian --add-json | claude mcp add-json obsidian
+  mcp_manager.sh config obsidian --add-json | xargs -d '\\n' claude mcp add-json
 
   # Check server health
   mcp_manager.sh health github

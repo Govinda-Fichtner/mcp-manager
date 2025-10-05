@@ -74,19 +74,23 @@ Describe 'Config Command'
   End
 
   Describe 'cmd_config() with --add-json'
-    It 'includes server name before JSON for claude mcp add-json'
+    It 'outputs server name on first line'
       When call cmd_config test-server --format claude-code --add-json
       The status should equal 0
-      # Output should start with server name followed by space and JSON
-      The output should start with "test-server "
-      The output should include '{"command":'
+      The line 1 of output should equal "test-server"
     End
 
-    It 'outputs format compatible with claude mcp add-json command'
+    It 'outputs JSON on second line'
       When call cmd_config test-server --format claude-code --add-json
-      # Verify the output starts with server name and contains valid JSON
-      The output should include 'test-server {"command": "docker"'
-      The output should include '"args":'
+      The line 2 of output should start with '{"command":'
+      The line 2 of output should include '"docker"'
+    End
+
+    It 'outputs format compatible with xargs for claude mcp add-json'
+      When call cmd_config test-server --format claude-code --add-json
+      # Output should be: line1=name, line2=json (for xargs -d '\n')
+      The line 1 of output should equal "test-server"
+      The line 2 of output should include '"args":'
     End
   End
 End
