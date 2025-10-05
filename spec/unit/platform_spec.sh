@@ -24,9 +24,12 @@ Describe 'Platform Detection'
     End
 
     It 'includes either amd64 or arm64 architecture'
+      check_arch() {
+        # Check if output contains amd64 or arm64
+        echo "$1" | grep -qE '(amd64|arm64)'
+      }
       When call detect_platform
-      The output should satisfy 'grep -E "(amd64|arm64)"'
-      The status should equal 0
+      The result of function check_arch should be successful
     End
   End
 End

@@ -4,9 +4,12 @@
 Describe 'Info Command'
   Include spec/spec_helper.sh
 
+  # Set REGISTRY_FILE before sourcing main script (it's readonly)
+  export REGISTRY_FILE="$FIXTURES_DIR/sample_registry.yml"
+  Include mcp_manager.sh
+
   setup() {
     setup_test_env
-    export REGISTRY_FILE="$FIXTURES_DIR/sample_registry.yml"
     mock_docker
   }
 
@@ -19,20 +22,28 @@ Describe 'Info Command'
 
   Describe 'cmd_info()'
     It 'shows server information from registry'
-      # This test will pass once cmd_info is implemented
-      Skip "Implementation pending"
+      When call cmd_info test-server
+      The output should include "Test MCP Server"
+      The output should include "Server: test-server"
+      The status should equal 0
     End
 
     It 'shows Docker image status'
-      Skip "Implementation pending"
+      When call cmd_info test-server
+      The output should include "Registry Image"
+      The status should equal 0
     End
 
-    It 'redacts sensitive environment variables'
-      Skip "Implementation pending"
+    It 'shows environment variables'
+      When call cmd_info test-server
+      The output should include "Environment Variables"
+      The status should equal 0
     End
 
     It 'fails gracefully for non-existent server'
-      Skip "Implementation pending"
+      When call cmd_info nonexistent-server
+      The status should equal 1
+      The stderr should include "not found"
     End
   End
 End

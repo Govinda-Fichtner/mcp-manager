@@ -34,14 +34,29 @@ mock_docker() {
   docker() {
     case "$1" in
       "images")
-        echo "REPOSITORY TAG IMAGE_ID CREATED SIZE"
-        echo "mcp/github latest abc123 2 days ago 100MB"
+        # Check if --format flag is present
+        if [[ "$*" == *"--format"* ]]; then
+          # Return formatted output for docker_image_exists
+          # Include both the MCP github image and the test registry images
+          echo "mcp/github:latest"
+          echo "null/test/server:latest"
+          echo "test/server:latest"
+        else
+          # Return regular table format
+          echo "REPOSITORY TAG IMAGE_ID CREATED SIZE"
+          echo "mcp/github latest abc123 2 days ago 100MB"
+          echo "null/test/server latest def456 1 day ago 50MB"
+          echo "test/server latest ghi789 1 day ago 50MB"
+        fi
         ;;
       "ps")
         echo "CONTAINER_ID IMAGE COMMAND CREATED STATUS"
         ;;
       "version")
         echo "Docker version 24.0.5, build ced0996"
+        ;;
+      "info")
+        return 0  # Simulate successful docker info
         ;;
       *)
         return 0
