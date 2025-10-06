@@ -413,19 +413,11 @@ servers:
     description: "Debug Adapter Protocol (DAP) server enabling AI agents to debug applications across multiple languages (Python, Ruby, Node.js, Go, Rust)"
     category: "development"
 
-    # ⚠️ WARNING: This server is NOT MCP-compliant and will not work
-    # Issue: Uses LSP-style Content-Length headers instead of raw JSON-RPC
-    # The MCP specification requires raw JSON-RPC over stdio (one JSON per line)
-    # but this server expects LSP format: "Content-Length: N\r\n\r\n{json}"
-    # See: src/mcp/transport.rs lines 22-42
-    # Status: Builds successfully but fails health check (hangs waiting for headers)
-
     source:
       type: "repository"  # Clone and build from repository
       repository: "https://github.com/Govinda-Fichtner/debugger-mcp.git"
       image: "local/debugger-mcp:latest"
       build_context: "."
-      dockerfile: "Dockerfile.mcp"
 
     environment_variables:
       - "DEBUGGER_WORKSPACE"
