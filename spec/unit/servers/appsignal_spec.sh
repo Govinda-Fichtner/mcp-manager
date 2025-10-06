@@ -55,11 +55,6 @@ Describe 'AppSignal MCP Server'
       The output should equal "local/appsignal-mcp-server:latest"
     End
 
-    It 'parses dockerfile path'
-      When call get_server_field "appsignal" "source.dockerfile"
-      The output should equal "support/docker/appsignal/Dockerfile"
-    End
-
     It 'parses build context'
       When call get_server_field "appsignal" "source.build_context"
       The output should equal "."

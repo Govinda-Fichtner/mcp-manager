@@ -95,7 +95,6 @@ servers:
       type: "repository"  # Clone and build from repository
       repository: "https://github.com/appsignal/appsignal-mcp"
       image: "local/appsignal-mcp-server:latest"
-      dockerfile: "support/docker/appsignal/Dockerfile"
       build_context: "."
 
     environment_variables:
@@ -323,7 +322,6 @@ servers:
       type: "repository"  # Clone and build from repository
       repository: "https://github.com/recraft-ai/mcp-recraft-server.git"
       image: "local/recraft-mcp-server:latest"
-      dockerfile: "support/docker/recraft/Dockerfile"
       build_context: "."
 
     environment_variables:
