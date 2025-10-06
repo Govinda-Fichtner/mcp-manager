@@ -60,17 +60,6 @@ Describe 'Figma MCP Server'
       The output should equal "host"
     End
 
-    It 'parses entrypoint'
-      When call get_server_field "figma" "docker.entrypoint"
-      The output should equal "node"
-    End
-
-    It 'parses cmd array'
-      When call get_server_field "figma" "docker.cmd"
-      The output should include "dist/cli.js"
-      The output should include "--stdio"
-    End
-
     It 'parses startup timeout'
       When call get_server_field "figma" "startup_timeout"
       The output should equal "10"

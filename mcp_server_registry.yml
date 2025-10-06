@@ -120,8 +120,6 @@ servers:
 
     docker:
       network_mode: "host"
-      entrypoint: "node"
-      cmd: ["dist/cli.js", "--stdio"]
 
     startup_timeout: 10
 

@@ -687,7 +687,31 @@ test_mcp_complete() {
     docker_cmd+=("--env-file" ".env")
   fi
 
+  # Check for custom entrypoint
+  local entrypoint
+  entrypoint="$(get_server_field "$server_name" "docker.entrypoint")"
+  if [[ -n "$entrypoint" && "$entrypoint" != "null" ]]; then
+    docker_cmd+=("--entrypoint" "$entrypoint")
+  fi
+
   docker_cmd+=("$image")
+
+  # Check for custom cmd
+  local cmd_array
+  cmd_array="$(get_server_field "$server_name" "docker.cmd")"
+  if [[ -n "$cmd_array" && "$cmd_array" != "null" ]]; then
+    # Parse YAML array into bash array
+    while IFS= read -r cmd_item; do
+      if [[ -n "$cmd_item" ]]; then
+        docker_cmd+=("$cmd_item")
+      fi
+    done < <(yq eval ".servers.${server_name}.docker.cmd[]" "$REGISTRY_FILE" 2>/dev/null)
+  fi
+
+  # Debug: show the docker command
+  if [[ "${DEBUG:-false}" == "true" ]]; then
+    echo "  │   ├── Docker command: ${docker_cmd[*]}" >&2
+  fi
 
   # Send complete MCP protocol sequence in one stream
   # MCP servers run in continuous stdio mode - they respond but don't terminate
