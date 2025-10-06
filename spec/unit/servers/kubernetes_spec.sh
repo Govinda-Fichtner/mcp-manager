@@ -8,9 +8,9 @@ Describe 'kubernetes MCP Server'
   BeforeEach 'setup'
   AfterEach 'cleanup'
   Describe 'Registry Configuration'
-    It 'parses server fields'
+    It 'parses server name'
       When call get_server_field "kubernetes" "name"
-      The status should equal 0
+      The output should equal "Kubernetes MCP Server"
     End
   End
   Describe 'List Command'

@@ -671,12 +671,18 @@ test_mcp_complete() {
 
   echo "  ├── Connecting to MCP server..."
 
-  # Get server-specific timeout (default: 5 seconds, should be enough for responses)
+  # Get server-specific timeout from registry
   # MCP servers in stdio mode don't terminate, so we use timeout to collect responses
   local timeout_seconds
-  timeout_seconds=$(yq eval ".servers[] | select(.name | test(\"(?i)${server_name}\")) | .startup_timeout" "$REGISTRY_FILE" 2>/dev/null || echo "5")
-  if [[ "$timeout_seconds" == "null" ]] || [[ -z "$timeout_seconds" ]]; then
+  timeout_seconds="$(get_server_field "$server_name" "startup_timeout")"
+
+  # Default to 5 seconds if not specified
+  if [[ -z "$timeout_seconds" || "$timeout_seconds" == "null" ]]; then
     timeout_seconds=5
+  fi
+
+  if [[ "${DEBUG:-false}" == "true" ]]; then
+    echo "  │   ├── Using timeout: ${timeout_seconds}s" >&2
   fi
 
   # Build docker run command

@@ -8,9 +8,9 @@ Describe 'docker MCP Server'
   BeforeEach 'setup'
   AfterEach 'cleanup'
   Describe 'Registry Configuration'
-    It 'parses server fields'
+    It 'parses server name'
       When call get_server_field "docker" "name"
-      The status should equal 0
+      The output should equal "Docker MCP Server"
     End
   End
   Describe 'List Command'

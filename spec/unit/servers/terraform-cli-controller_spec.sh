@@ -8,9 +8,9 @@ Describe 'terraform-cli-controller MCP Server'
   BeforeEach 'setup'
   AfterEach 'cleanup'
   Describe 'Registry Configuration'
-    It 'parses server fields'
+    It 'parses server name'
       When call get_server_field "terraform-cli-controller" "name"
-      The status should equal 0
+      The output should equal "Terraform CLI Controller"
     End
   End
   Describe 'List Command'
