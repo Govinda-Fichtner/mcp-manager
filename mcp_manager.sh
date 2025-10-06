@@ -1380,8 +1380,11 @@ build_config_context() {
       image="mcp-${server_name}:latest"
     fi
   else
-    # For repository build, use local tag
-    image="mcp-${server_name}:latest"
+    # For repository build, get image from registry or use default naming
+    image="$(get_server_field "$server_name" "source.image")"
+    if [[ -z "$image" || "$image" == "null" ]]; then
+      image="mcp-${server_name}:latest"
+    fi
   fi
 
   # Get environment variables

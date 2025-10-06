@@ -4,48 +4,90 @@ This directory contains integration tests that validate MCP servers work correct
 
 ## Available Tests
 
-### test_debugger_fizzbuzz_claude.sh
+### test_debugger_python_fizzbuzz_claude.sh
 
-Integration test validating the debugger-mcp server works with Claude Code.
+Integration test validating the debugger-python server works with Claude Code (Python debugging).
 
-**Test Flow:**
+### test_debugger_ruby_fizzbuzz_claude.sh
+
+Integration test validating the debugger-ruby server works with Claude Code (Ruby debugging).
+
+## Test Flow (both tests)
+
 1. Validates Claude CLI is available and working
-2. Checks debugger-mcp Docker image exists
+2. Checks appropriate debugger-mcp image exists (Python or Ruby)
 3. Creates FizzBuzz implementation with intentional bug (line 21: `% 4` instead of `% 5`)
 4. Generates MCP server configuration
-5. Adds debugger-mcp server to Claude Code
+5. Adds debugger server to Claude Code
 6. Runs Claude Code to analyze and debug the FizzBuzz bug
 7. Validates Claude identified the bug and its location
 8. Captures MCP protocol communication (if debugger tools are used)
 9. Automatically cleans up: removes MCP server and test workspace
 
-**Prerequisites:**
+## Prerequisites
+
 - Claude Code CLI (`claude`) installed and in PATH
-- Docker with debugger-mcp image built
+- Docker with appropriate debugger image built:
+  - For Python test: `./mcp_manager.sh setup debugger-python`
+  - For Ruby test: `./mcp_manager.sh setup debugger-ruby`
 - `.env` file configured with `DEBUGGER_WORKSPACE`
 
-**Run Test:**
+## Running Tests
+
 ```bash
-./tests/integration/test_debugger_fizzbuzz_claude.sh
+# Python debugger test
+./tests/integration/test_debugger_python_fizzbuzz_claude.sh
+
+# Ruby debugger test
+./tests/integration/test_debugger_ruby_fizzbuzz_claude.sh
+
+# Run both
+for test in ./tests/integration/test_debugger_*.sh; do
+    echo "Running $test..."
+    bash "$test"
+    echo ""
+done
 ```
 
-**Success Criteria:**
+## Success Criteria
+
 - ✅ Claude CLI available and functional
-- ✅ debugger-mcp image exists
+- ✅ Appropriate debugger image exists (debugger-mcp-python or debugger-mcp-ruby)
 - ✅ Claude identifies there is a bug
 - ✅ Claude identifies the bug location (line 21 or `% 4`)
 - ○ Claude uses debugger MCP tools (optional - may analyze manually)
 
-**Test Artifacts:**
-All artifacts are created in temporary workspace and automatically cleaned up on exit.
+## Test Differences
 
-**Timeout:**
+| Aspect | Python Test | Ruby Test |
+|--------|------------|-----------|
+| Test file | `fizzbuzz.py` | `fizzbuzz.rb` |
+| Language | Python 3 | Ruby |
+| MCP Server | `debugger-python` | `debugger-ruby` |
+| Docker Image | `local/debugger-mcp-python:latest` | `local/debugger-mcp-ruby:latest` |
+| Workspace | `workspace_python/` | `workspace_ruby/` |
+| MCP Server Name | `debugger-python-test` | `debugger-ruby-test` |
+
+## Test Artifacts
+
+All artifacts are created in temporary workspaces and automatically cleaned up on exit:
+- `workspace_python/` - Python test artifacts
+- `workspace_ruby/` - Ruby test artifacts
+
+Each workspace contains:
+- `fizzbuzz.{py,rb}` - FizzBuzz implementation with bug
+- `debug_prompt.txt` - Prompt sent to Claude
+- `claude_output.txt` - Claude's analysis results
+- `mcp_protocol.log` - MCP protocol communication log
+
+## Timeout
+
 Claude execution has 120-second timeout. If test hangs, it will automatically abort and clean up.
 
 ## Running All Integration Tests
 
 ```bash
-# Run all tests
+# From project root
 for test in tests/integration/test_*.sh; do
     echo "Running $test..."
     bash "$test"

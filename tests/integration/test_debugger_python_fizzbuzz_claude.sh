@@ -1,9 +1,9 @@
 #!/bin/bash
-# Integration test: debugger-mcp with Claude Code using FizzBuzz
+# Integration test: debugger-python with Claude Code using FizzBuzz
 #
 # This test validates that:
 # 1. Claude CLI is available and working
-# 2. debugger-mcp server can be added to Claude Code
+# 2. debugger-python server can be added to Claude Code
 # 3. Claude can use the debugger to debug a FizzBuzz implementation
 # 4. MCP protocol communication works correctly
 # 5. Server can be cleanly removed after testing
@@ -20,9 +20,9 @@ NC='\033[0m' # No Color
 # Test configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
-TEST_WORKSPACE="$PROJECT_ROOT/tests/integration/workspace"
+TEST_WORKSPACE="$PROJECT_ROOT/tests/integration/workspace_python"
 FIZZBUZZ_FILE="$TEST_WORKSPACE/fizzbuzz.py"
-MCP_SERVER_NAME="debugger-test"
+MCP_SERVER_NAME="debugger-python-test"
 
 # Cleanup function
 cleanup() {
@@ -74,7 +74,7 @@ log_info() {
 # Main test execution
 main() {
     echo "================================================"
-    echo "FizzBuzz Integration Test: debugger-mcp + Claude Code"
+    echo "FizzBuzz Integration Test: debugger-python + Claude Code"
     echo "================================================"
 
     # Step 1: Validate Claude CLI is available
@@ -101,14 +101,14 @@ main() {
     fi
     log_success "Claude CLI is functional"
 
-    # Step 3: Check if debugger-mcp image exists
-    log_step "Step 3: Validating debugger-mcp Docker image"
+    # Step 3: Check if debugger-python image exists
+    log_step "Step 3: Validating debugger-python Docker image"
 
-    if ! docker images --format "{{.Repository}}:{{.Tag}}" | grep -q "mcp-debugger:latest"; then
-        log_error "debugger-mcp image not found. Please run: ./mcp_manager.sh setup debugger"
+    if ! docker images --format "{{.Repository}}:{{.Tag}}" | grep -q "debugger-mcp-python:latest"; then
+        log_error "debugger-python image not found. Please run: ./mcp_manager.sh setup debugger-python"
         return 1
     fi
-    log_success "debugger-mcp image found"
+    log_success "debugger-python image found"
 
     # Step 4: Create test workspace with FizzBuzz
     log_step "Step 4: Creating test workspace with FizzBuzz implementation"
@@ -164,7 +164,7 @@ PYTHON_CODE
     log_step "Step 5: Generating MCP server configuration"
 
     local mcp_config_json
-    mcp_config_json=$("$PROJECT_ROOT/mcp_manager.sh" config debugger --add-json --env-file "$PROJECT_ROOT/.env")
+    mcp_config_json=$("$PROJECT_ROOT/mcp_manager.sh" config debugger-python --add-json --env-file "$PROJECT_ROOT/.env")
 
     if [[ -z "$mcp_config_json" ]]; then
         log_error "Failed to generate MCP configuration"
@@ -176,7 +176,7 @@ PYTHON_CODE
     echo "$mcp_config_json" | head -5
 
     # Step 6: Add MCP server to Claude Code
-    log_step "Step 6: Adding debugger-mcp server to Claude Code"
+    log_step "Step 6: Adding debugger-python server to Claude Code"
 
     if claude mcp list 2>/dev/null | grep -q "$MCP_SERVER_NAME"; then
         log_info "Removing existing $MCP_SERVER_NAME server"
@@ -216,7 +216,7 @@ The program should:
 - Print "FizzBuzz" for numbers divisible by both
 - Print the number otherwise
 
-Use the debugger MCP tools if available to:
+Use the debugger-python-test MCP tools if available to:
 1. Start a debugging session for fizzbuzz.py
 2. Set a breakpoint at line 21 (the bug location)
 3. Evaluate the expression "n % 5 == 0" vs "n % 4 == 0" for n=5
