@@ -1403,7 +1403,41 @@ build_config_context() {
   volumes_count="$(yq eval ".servers.${server_name}.volumes | length" "$REGISTRY_FILE" 2>/dev/null || echo "0")"
 
   if [[ "$volumes_count" != "0" && "$volumes_count" != "null" ]]; then
-    volumes_json="$(yq eval ".servers.${server_name}.volumes" "$REGISTRY_FILE" -o=json)"
+    # Get raw volume strings from registry
+    local raw_volumes
+    raw_volumes="$(yq eval ".servers.${server_name}.volumes" "$REGISTRY_FILE" -o=json)"
+
+    # Parse volume strings into structured objects
+    # Format: "SOURCE:TARGET" or "SOURCE:TARGET:MODE" or "ENV_VAR:TARGET"
+    volumes_json="$(echo "$raw_volumes" | jq -r '.[] | @text' | while IFS= read -r volume_spec; do
+      # Check if volume_spec contains environment variable reference
+      local source_part target_part mode_part
+
+      # Split by colons
+      IFS=':' read -r source_part target_part mode_part <<< "$volume_spec"
+
+      # Default mode to empty string (will use Docker default 'rw')
+      mode_part="${mode_part:-rw}"
+
+      # Expand environment variables in source
+      # Handle both formats: ENVVAR and ${ENVVAR}
+      if [[ "$source_part" =~ ^\$\{([A-Z_][A-Z0-9_]*)\}$ ]]; then
+        # Format: ${ENVVAR}
+        local var_name="${BASH_REMATCH[1]}"
+        source_part="$(eval echo "\${$var_name}")"
+      elif [[ "$source_part" =~ ^[A-Z_][A-Z0-9_]*$ ]]; then
+        # Format: ENVVAR (simple name without $)
+        source_part="$(eval echo "\${$source_part}")"
+      fi
+      # Otherwise, treat as literal path
+
+      # Output JSON object
+      jq -n \
+        --arg source "$source_part" \
+        --arg target "$target_part" \
+        --arg mode "$mode_part" \
+        '{source: $source, target: $target, mode: $mode}'
+    done | jq -s .)"
   fi
 
   # Build complete context
