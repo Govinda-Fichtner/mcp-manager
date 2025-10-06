@@ -1078,6 +1078,74 @@ setup_from_repository() {
   fi
   log_verbose "Repository cloned successfully"
 
+  # Special handling for debugger-mcp: Cargo.lock is in .dockerignore but Dockerfile tries to copy it
+  if [[ "$server_name" == "debugger" ]]; then
+    log_info "Applying fix for debugger-mcp (removing Cargo.lock from .dockerignore)"
+    # Remove Cargo.lock from .dockerignore so it can be copied by Dockerfile
+    sed -i '/^Cargo\.lock$/d' "$tmp_dir/.dockerignore"
+    log_verbose "Removed Cargo.lock from .dockerignore"
+
+    # Also need to fix pip install for Alpine 3.21
+    log_info "Creating fixed Dockerfile for Alpine 3.21 pip compatibility"
+    cat > "$tmp_dir/Dockerfile.mcp" << 'DOCKERFILE_FIX'
+# Multi-stage build for lean production image
+# Stage 1: Build the Rust binary using nightly for edition2024 support
+FROM rustlang/rust:nightly-alpine AS builder
+
+# Install build dependencies
+RUN apk add --no-cache musl-dev
+
+# Create app directory
+WORKDIR /app
+
+# Copy manifest files
+COPY Cargo.toml Cargo.lock ./
+
+# Copy source code
+COPY src ./src
+
+# Build release binary with static linking for native architecture
+RUN cargo build --release
+
+# Stage 2: Create minimal runtime image
+FROM alpine:3.21
+
+# Install runtime dependencies
+# Python and debugpy are needed for Python debugging support
+RUN apk add --no-cache \
+    python3 \
+    py3-pip \
+    && pip3 install --no-cache-dir --break-system-packages debugpy \
+    && rm -rf /root/.cache
+
+# Create non-root user
+RUN addgroup -g 1000 mcpuser && \
+    adduser -D -u 1000 -G mcpuser mcpuser
+
+# Copy binary from builder
+COPY --from=builder /app/target/release/debugger_mcp /usr/local/bin/debugger_mcp
+
+# Set ownership
+RUN chown mcpuser:mcpuser /usr/local/bin/debugger_mcp
+
+# Switch to non-root user
+USER mcpuser
+
+# Set working directory
+WORKDIR /workspace
+
+# Default command
+CMD ["debugger_mcp", "serve"]
+
+# Metadata
+LABEL org.opencontainers.image.title="debugger-mcp"
+LABEL org.opencontainers.image.description="DAP MCP Server - Debug Adapter Protocol for AI Agents"
+LABEL org.opencontainers.image.source="https://github.com/Govinda-Fichtner/debugger-mcp"
+LABEL org.opencontainers.image.version="0.1.0"
+DOCKERFILE_FIX
+    log_verbose "Created Dockerfile.mcp with Cargo.lock fix"
+  fi
+
   # Determine build directory
   # If subdirectory is set, it's informational - build context is always from repo root
   local build_dir="$tmp_dir"

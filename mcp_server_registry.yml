@@ -407,6 +407,31 @@ servers:
 
     startup_timeout: 10
 
+  debugger:
+    name: "DAP MCP Server"
+    server_type: "mount_based"  # Requires volume mounts for debugging workspace
+    description: "Debug Adapter Protocol (DAP) server enabling AI agents to debug applications across multiple languages (Python, Ruby, Node.js, Go, Rust)"
+    category: "development"
+
+    source:
+      type: "repository"  # Clone and build from repository
+      repository: "https://github.com/Govinda-Fichtner/debugger-mcp.git"
+      image: "local/debugger-mcp:latest"
+      build_context: "."
+      dockerfile: "Dockerfile.mcp"
+
+    environment_variables:
+      - "DEBUGGER_WORKSPACE"
+
+    volumes:
+      - "DEBUGGER_WORKSPACE:/workspace"
+
+    docker:
+      network_mode: "host"
+      cmd: ["debugger_mcp", "serve"]
+
+    startup_timeout: 15
+
 # Global configuration
 global:
   build_directory: "./mcp_builds"
