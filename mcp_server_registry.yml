@@ -457,6 +457,31 @@ servers:
 
     startup_timeout: 15
 
+  debugger-nodejs:
+    name: "DAP MCP Server (Node.js)"
+    server_type: "mount_based"  # Requires volume mounts for debugging workspace
+    description: "Debug Adapter Protocol (DAP) server for Node.js - enables AI agents to debug Node.js applications"
+    category: "development"
+
+    source:
+      type: "repository"  # Clone and build from repository
+      repository: "https://github.com/Govinda-Fichtner/debugger-mcp.git"
+      image: "local/debugger-mcp-nodejs:latest"
+      build_context: "."
+      dockerfile: "Dockerfile.nodejs"
+
+    environment_variables:
+      - "DEBUGGER_WORKSPACE"
+
+    volumes:
+      - "DEBUGGER_WORKSPACE:/workspace"
+
+    docker:
+      network_mode: "host"
+      cmd: ["debugger_mcp", "serve"]
+
+    startup_timeout: 15
+
 # Global configuration
 global:
   build_directory: "./mcp_builds"
