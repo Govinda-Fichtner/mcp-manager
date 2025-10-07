@@ -482,6 +482,31 @@ servers:
 
     startup_timeout: 15
 
+  debugger-rust:
+    name: "DAP MCP Server (Rust)"
+    server_type: "mount_based"  # Requires volume mounts for debugging workspace
+    description: "Debug Adapter Protocol (DAP) server for Rust - enables AI agents to debug Rust applications"
+    category: "development"
+
+    source:
+      type: "repository"  # Clone and build from repository
+      repository: "https://github.com/Govinda-Fichtner/debugger-mcp.git"
+      image: "mcp-debugger-rust:latest"
+      build_context: "."
+      dockerfile: "Dockerfile.rust"
+
+    environment_variables:
+      - "DEBUGGER_WORKSPACE"
+
+    volumes:
+      - "DEBUGGER_WORKSPACE:/workspace"
+
+    docker:
+      network_mode: "host"
+      cmd: ["debugger_mcp", "serve"]
+
+    startup_timeout: 15
+
 # Global configuration
 global:
   build_directory: "./mcp_builds"
