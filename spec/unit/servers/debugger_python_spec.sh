@@ -52,7 +52,7 @@ Describe 'debugger-python MCP Server'
 
     It 'parses image name'
       When call get_server_field "debugger-python" "source.image"
-      The output should equal "local/debugger-mcp-python:latest"
+      The output should equal "mcp-debugger-python:latest"
     End
 
     It 'parses dockerfile name'

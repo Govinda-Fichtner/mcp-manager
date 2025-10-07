@@ -52,7 +52,7 @@ Describe 'debugger-ruby MCP Server'
 
     It 'parses image name'
       When call get_server_field "debugger-ruby" "source.image"
-      The output should equal "local/debugger-mcp-ruby:latest"
+      The output should equal "mcp-debugger-ruby:latest"
     End
 
     It 'parses dockerfile name'

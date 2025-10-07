@@ -52,7 +52,7 @@ Describe 'debugger-nodejs MCP Server'
 
     It 'parses image name'
       When call get_server_field "debugger-nodejs" "source.image"
-      The output should equal "local/debugger-mcp-nodejs:latest"
+      The output should equal "mcp-debugger-nodejs:latest"
     End
 
     It 'parses dockerfile name'

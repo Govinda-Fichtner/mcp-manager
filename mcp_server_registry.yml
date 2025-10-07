@@ -416,7 +416,7 @@ servers:
     source:
       type: "repository"  # Clone and build from repository
       repository: "https://github.com/Govinda-Fichtner/debugger-mcp.git"
-      image: "local/debugger-mcp-python:latest"
+      image: "mcp-debugger-python:latest"
       build_context: "."
       dockerfile: "Dockerfile.python"
 
@@ -441,7 +441,7 @@ servers:
     source:
       type: "repository"  # Clone and build from repository
       repository: "https://github.com/Govinda-Fichtner/debugger-mcp.git"
-      image: "local/debugger-mcp-ruby:latest"
+      image: "mcp-debugger-ruby:latest"
       build_context: "."
       dockerfile: "Dockerfile.ruby"
 
@@ -466,7 +466,7 @@ servers:
     source:
       type: "repository"  # Clone and build from repository
       repository: "https://github.com/Govinda-Fichtner/debugger-mcp.git"
-      image: "local/debugger-mcp-nodejs:latest"
+      image: "mcp-debugger-nodejs:latest"
       build_context: "."
       dockerfile: "Dockerfile.nodejs"
 
