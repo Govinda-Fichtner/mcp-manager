@@ -671,12 +671,18 @@ test_mcp_complete() {
 
   echo "  ├── Connecting to MCP server..."
 
-  # Get server-specific timeout (default: 5 seconds, should be enough for responses)
+  # Get server-specific timeout from registry
   # MCP servers in stdio mode don't terminate, so we use timeout to collect responses
   local timeout_seconds
-  timeout_seconds=$(yq eval ".servers[] | select(.name | test(\"(?i)${server_name}\")) | .startup_timeout" "$REGISTRY_FILE" 2>/dev/null || echo "5")
-  if [[ "$timeout_seconds" == "null" ]] || [[ -z "$timeout_seconds" ]]; then
+  timeout_seconds="$(get_server_field "$server_name" "startup_timeout")"
+
+  # Default to 5 seconds if not specified
+  if [[ -z "$timeout_seconds" || "$timeout_seconds" == "null" ]]; then
     timeout_seconds=5
+  fi
+
+  if [[ "${DEBUG:-false}" == "true" ]]; then
+    echo "  │   ├── Using timeout: ${timeout_seconds}s" >&2
   fi
 
   # Build docker run command
@@ -1072,6 +1078,8 @@ setup_from_repository() {
   fi
   log_verbose "Repository cloned successfully"
 
+  # No special handling needed for debugger-mcp anymore - upstream fixed all issues!
+
   # Determine build directory
   # If subdirectory is set, it's informational - build context is always from repo root
   local build_dir="$tmp_dir"
@@ -1372,8 +1380,11 @@ build_config_context() {
       image="mcp-${server_name}:latest"
     fi
   else
-    # For repository build, use local tag
-    image="mcp-${server_name}:latest"
+    # For repository build, get image from registry or use default naming
+    image="$(get_server_field "$server_name" "source.image")"
+    if [[ -z "$image" || "$image" == "null" ]]; then
+      image="mcp-${server_name}:latest"
+    fi
   fi
 
   # Get environment variables
@@ -1395,7 +1406,41 @@ build_config_context() {
   volumes_count="$(yq eval ".servers.${server_name}.volumes | length" "$REGISTRY_FILE" 2>/dev/null || echo "0")"
 
   if [[ "$volumes_count" != "0" && "$volumes_count" != "null" ]]; then
-    volumes_json="$(yq eval ".servers.${server_name}.volumes" "$REGISTRY_FILE" -o=json)"
+    # Get raw volume strings from registry
+    local raw_volumes
+    raw_volumes="$(yq eval ".servers.${server_name}.volumes" "$REGISTRY_FILE" -o=json)"
+
+    # Parse volume strings into structured objects
+    # Format: "SOURCE:TARGET" or "SOURCE:TARGET:MODE" or "ENV_VAR:TARGET"
+    volumes_json="$(echo "$raw_volumes" | jq -r '.[] | @text' | while IFS= read -r volume_spec; do
+      # Check if volume_spec contains environment variable reference
+      local source_part target_part mode_part
+
+      # Split by colons
+      IFS=':' read -r source_part target_part mode_part <<< "$volume_spec"
+
+      # Default mode to empty string (will use Docker default 'rw')
+      mode_part="${mode_part:-rw}"
+
+      # Expand environment variables in source
+      # Handle both formats: ENVVAR and ${ENVVAR}
+      if [[ "$source_part" =~ ^\$\{([A-Z_][A-Z0-9_]*)\}$ ]]; then
+        # Format: ${ENVVAR}
+        local var_name="${BASH_REMATCH[1]}"
+        source_part="$(eval echo "\${$var_name}")"
+      elif [[ "$source_part" =~ ^[A-Z_][A-Z0-9_]*$ ]]; then
+        # Format: ENVVAR (simple name without $)
+        source_part="$(eval echo "\${$source_part}")"
+      fi
+      # Otherwise, treat as literal path
+
+      # Output JSON object
+      jq -n \
+        --arg source "$source_part" \
+        --arg target "$target_part" \
+        --arg mode "$mode_part" \
+        '{source: $source, target: $target, mode: $mode}'
+    done | jq -s .)"
   fi
 
   # Build complete context
