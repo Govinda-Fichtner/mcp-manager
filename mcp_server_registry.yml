@@ -489,11 +489,11 @@ servers:
     category: "development"
 
     source:
-      type: "repository"  # Clone and build from repository
+      type: "repository"  # Clone and build with local Dockerfile override
       repository: "https://github.com/Govinda-Fichtner/debugger-mcp.git"
       image: "mcp-debugger-rust:latest"
       build_context: "."
-      dockerfile: "Dockerfile.rust"
+      dockerfile: "support/docker/Dockerfile.rust"  # Uses local fixed version with Alpine mirrors
 
     environment_variables:
       - "DEBUGGER_WORKSPACE"
