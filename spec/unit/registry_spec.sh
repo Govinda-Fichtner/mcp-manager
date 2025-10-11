@@ -25,12 +25,6 @@ Describe 'Registry Functions'
       When call validate_registry
       The status should equal 0
     End
-
-    It 'returns 1 when registry file does not exist'
-      # We can't change REGISTRY_FILE at runtime (it's readonly)
-      # So we'll test this differently - delete the fixture temporarily
-      Skip "Cannot override readonly REGISTRY_FILE - needs refactoring"
-    End
   End
 
   Describe 'list_servers()'

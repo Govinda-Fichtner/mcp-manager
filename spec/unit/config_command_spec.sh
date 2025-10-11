@@ -55,24 +55,6 @@ Describe 'Config Command'
     End
   End
 
-  Describe 'Output modes validation'
-    It 'generates different output for full mode'
-      Skip "Requires full template rendering - integration test"
-    End
-
-    It 'generates different output for snippet mode'
-      Skip "Requires full template rendering - integration test"
-    End
-
-    It 'generates single-line JSON for add-json mode'
-      Skip "Requires full template rendering - integration test"
-    End
-
-    It 'validates --add-json only works with claude-code format'
-      Skip "Requires command-line argument parsing - integration test"
-    End
-  End
-
   Describe 'cmd_config() with --add-json'
     It 'outputs single-line JSON without server name'
       When call cmd_config test-server --format claude-code --add-json
