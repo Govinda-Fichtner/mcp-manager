@@ -49,10 +49,11 @@ servers:
     category: "knowledge"
 
     source:
-      type: "repository"  # Clone and build from repository
+      type: "repository"  # Clone and build with local Dockerfile override
       repository: "https://github.com/cyanheads/obsidian-mcp-server.git"
       image: "local/obsidian-mcp-server:latest"
       build_context: "."
+      dockerfile: "support/docker/Dockerfile.obsidian"  # Fixed NODE_ENV issue in builder stage
 
     environment_variables:
       - "OBSIDIAN_API_KEY"
