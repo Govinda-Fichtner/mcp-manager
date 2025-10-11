@@ -1096,7 +1096,8 @@ setup_from_repository() {
   # If dockerfile path starts with "support/", copy from mcp-manager to cloned repo
   if [[ "$dockerfile" == support/* ]]; then
     local local_dockerfile="$SCRIPT_DIR/$dockerfile"
-    local target_dockerfile="$(basename "$dockerfile")"
+    local target_dockerfile
+    target_dockerfile="$(basename "$dockerfile")"
     log_verbose "Using local Dockerfile override: $local_dockerfile"
     if [[ -f "$local_dockerfile" ]]; then
       log_info "Copying local Dockerfile: $dockerfile -> $target_dockerfile"
