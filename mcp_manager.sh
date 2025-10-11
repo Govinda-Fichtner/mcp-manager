@@ -1092,6 +1092,23 @@ setup_from_repository() {
     return 1
   fi
 
+  # Support local Dockerfile overrides (e.g., support/docker/Dockerfile.*)
+  # If dockerfile path starts with "support/", copy from mcp-manager to cloned repo
+  if [[ "$dockerfile" == support/* ]]; then
+    local local_dockerfile="$SCRIPT_DIR/$dockerfile"
+    local target_dockerfile="$(basename "$dockerfile")"
+    log_verbose "Using local Dockerfile override: $local_dockerfile"
+    if [[ -f "$local_dockerfile" ]]; then
+      log_info "Copying local Dockerfile: $dockerfile -> $target_dockerfile"
+      cp "$local_dockerfile" "$build_dir/$target_dockerfile"
+      dockerfile="$target_dockerfile"
+    else
+      log_error "Local Dockerfile not found: $local_dockerfile"
+      rm -rf "$tmp_dir"
+      return 1
+    fi
+  fi
+
   # Build Docker image
   local image_tag="mcp-${server_name}:latest"
   local platform
