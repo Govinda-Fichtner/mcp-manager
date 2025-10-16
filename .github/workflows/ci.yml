@@ -29,15 +29,19 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
       - name: Install dependencies
         run: |
           # Install ShellSpec
           curl -fsSL https://git.io/shellspec | sh -s -- --yes
           sudo ln -s ${HOME}/.local/lib/shellspec/shellspec /usr/local/bin/shellspec
 
-          # Install jinja2-cli for config template rendering (use --user to ensure proper PATH)
-          pip install --user jinja2-cli
-          echo "$HOME/.local/bin" >> $GITHUB_PATH
+          # Install jinja2-cli for config template rendering
+          pip install jinja2-cli
 
       - name: Run unit tests
         run: shellspec --format documentation spec/unit/
