@@ -496,11 +496,6 @@ shellspec spec/unit/health_command_spec.sh
 shellspec spec/unit/ --format documentation
 ```
 
-**Test Coverage:**
-- 237 examples (unit tests)
-- 0 failures
-- All core functions tested with mocks
-
 ### Contributing
 
 We welcome contributions! Please follow these guidelines:
