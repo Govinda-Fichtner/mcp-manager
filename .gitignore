@@ -27,10 +27,6 @@ Thumbs.db
 *.sublime-*
 .claude/
 
-# Claude Code configuration files (project instructions)
-CLAUDE.md
-**/CLAUDE.md
-
 # Logs
 *.log
 logs/
