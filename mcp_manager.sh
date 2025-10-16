@@ -1306,10 +1306,17 @@ cmd_config() {
   log_verbose "Template context: $context_json"
 
   # Select template
-  local template_file="$SCRIPT_DIR/support/templates/${format}.json.j2"
-  if [[ "$format" == "gemini-cli" ]]; then
-    template_file="$SCRIPT_DIR/support/templates/gemini-cli.yaml.j2"
-  fi
+  # Select template file based on format
+  local template_file
+  case "$format" in
+    claude-code|claude-desktop)
+      # Both Claude formats use the same template (claude-code is superset with add-json mode)
+      template_file="$SCRIPT_DIR/support/templates/claude-code.json.j2"
+      ;;
+    gemini-cli)
+      template_file="$SCRIPT_DIR/support/templates/gemini-cli.yaml.j2"
+      ;;
+  esac
 
   if [[ ! -f "$template_file" ]]; then
     log_error "Template not found: $template_file"
