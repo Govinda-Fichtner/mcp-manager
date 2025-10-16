@@ -25,10 +25,12 @@ Thumbs.db
 .vscode/
 .idea/
 *.sublime-*
+.claude/
 
 # Logs
 *.log
 logs/
+report/
 
 # State files
 mcp.json
@@ -36,3 +38,6 @@ mcp.json.bak
 
 # Claude Flow metrics and runtime data
 .claude-flow/
+
+# Code quality tools
+.qlty/

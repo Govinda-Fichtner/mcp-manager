@@ -46,7 +46,7 @@ repos:
     hooks:
       - id: shellspec-unit
         name: ShellSpec unit tests
-        entry: bash -c 'if [ -x "$(command -v shellspec)" ]; then shellspec --profile --format documentation spec/unit/ || true; else echo "ShellSpec not installed, skipping tests"; fi'
+        entry: bash -c 'if [ -x "$(command -v shellspec)" ]; then shellspec --format documentation spec/unit/ || true; else echo "ShellSpec not installed, skipping tests"; fi'
         language: system
         pass_filenames: false
         files: \.(sh)$

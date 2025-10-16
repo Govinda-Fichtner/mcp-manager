@@ -49,10 +49,11 @@ servers:
     category: "knowledge"
 
     source:
-      type: "repository"  # Clone and build from repository
+      type: "repository"  # Clone and build with local Dockerfile override
       repository: "https://github.com/cyanheads/obsidian-mcp-server.git"
       image: "local/obsidian-mcp-server:latest"
       build_context: "."
+      dockerfile: "support/docker/Dockerfile.obsidian"  # Fixed NODE_ENV issue in builder stage
 
     environment_variables:
       - "OBSIDIAN_API_KEY"
@@ -416,7 +417,7 @@ servers:
     source:
       type: "repository"  # Clone and build from repository
       repository: "https://github.com/Govinda-Fichtner/debugger-mcp.git"
-      image: "local/debugger-mcp-python:latest"
+      image: "mcp-debugger-python:latest"
       build_context: "."
       dockerfile: "Dockerfile.python"
 
@@ -441,7 +442,7 @@ servers:
     source:
       type: "repository"  # Clone and build from repository
       repository: "https://github.com/Govinda-Fichtner/debugger-mcp.git"
-      image: "local/debugger-mcp-ruby:latest"
+      image: "mcp-debugger-ruby:latest"
       build_context: "."
       dockerfile: "Dockerfile.ruby"
 
@@ -466,9 +467,59 @@ servers:
     source:
       type: "repository"  # Clone and build from repository
       repository: "https://github.com/Govinda-Fichtner/debugger-mcp.git"
-      image: "local/debugger-mcp-nodejs:latest"
+      image: "mcp-debugger-nodejs:latest"
       build_context: "."
       dockerfile: "Dockerfile.nodejs"
+
+    environment_variables:
+      - "DEBUGGER_WORKSPACE"
+
+    volumes:
+      - "DEBUGGER_WORKSPACE:/workspace"
+
+    docker:
+      network_mode: "host"
+      cmd: ["debugger_mcp", "serve"]
+
+    startup_timeout: 15
+
+  debugger-go:
+    name: "DAP MCP Server (Go)"
+    server_type: "mount_based"  # Requires volume mounts for debugging workspace
+    description: "Debug Adapter Protocol (DAP) server for Go - enables AI agents to debug Go applications"
+    category: "development"
+
+    source:
+      type: "repository"  # Clone and build from repository
+      repository: "https://github.com/Govinda-Fichtner/debugger-mcp.git"
+      image: "mcp-debugger-go:latest"
+      build_context: "."
+      dockerfile: "Dockerfile.go"
+
+    environment_variables:
+      - "DEBUGGER_WORKSPACE"
+
+    volumes:
+      - "DEBUGGER_WORKSPACE:/workspace"
+
+    docker:
+      network_mode: "host"
+      cmd: ["debugger_mcp", "serve"]
+
+    startup_timeout: 15
+
+  debugger-rust:
+    name: "DAP MCP Server (Rust)"
+    server_type: "mount_based"  # Requires volume mounts for debugging workspace
+    description: "Debug Adapter Protocol (DAP) server for Rust - enables AI agents to debug Rust applications"
+    category: "development"
+
+    source:
+      type: "repository"  # Clone and build from repository
+      repository: "https://github.com/Govinda-Fichtner/debugger-mcp.git"
+      image: "mcp-debugger-rust:latest"
+      build_context: "."
+      dockerfile: "Dockerfile.rust"
 
     environment_variables:
       - "DEBUGGER_WORKSPACE"
