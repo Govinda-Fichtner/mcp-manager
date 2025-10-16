@@ -35,8 +35,9 @@ jobs:
           curl -fsSL https://git.io/shellspec | sh -s -- --yes
           sudo ln -s ${HOME}/.local/lib/shellspec/shellspec /usr/local/bin/shellspec
 
-          # Install jinja2-cli for config template rendering
-          pip install jinja2-cli
+          # Install jinja2-cli for config template rendering (use --user to ensure proper PATH)
+          pip install --user jinja2-cli
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
 
       - name: Run unit tests
         run: shellspec --format documentation spec/unit/
