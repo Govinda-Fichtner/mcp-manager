@@ -42,6 +42,10 @@ COPY package.json .
 
 # Create a non-root user and switch to it
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+
+# Create logs directory and set ownership before switching user
+RUN mkdir -p /usr/src/app/logs && chown -R appuser:appgroup /usr/src/app/logs
+
 USER appuser
 
 # Expose port if the application runs a server (adjust if needed)
