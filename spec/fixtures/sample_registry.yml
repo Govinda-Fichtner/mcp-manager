@@ -19,3 +19,25 @@ servers:
       network_mode: "host"
 
     startup_timeout: 10
+
+  test-server-with-cmd:
+    name: "Test MCP Server with CMD Override"
+    server_type: "standalone"
+    description: "Test server with docker.cmd override for STDIO mode"
+    category: "testing"
+
+    source:
+      type: "repository"
+      repository: "https://github.com/test/test-server.git"
+      image: "test-server-cmd:latest"
+      build_context: "."
+
+    docker:
+      network_mode: "host"
+      cmd:
+        - "node"
+        - "dist/index.js"
+        - "--transport"
+        - "stdio"
+
+    startup_timeout: 10

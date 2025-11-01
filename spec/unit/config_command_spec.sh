@@ -53,6 +53,29 @@ Describe 'Config Command'
       When call build_config_context test-server add-json
       The output should include '"output_mode": "add-json"'
     End
+
+    It 'includes empty container_args when docker.cmd is not set'
+      When call build_config_context test-server full
+      The output should include '"container_args": []'
+    End
+
+    It 'includes container_args when docker.cmd is set'
+      When call build_config_context test-server-with-cmd full
+      The status should equal 0
+      The output should include '"container_args":'
+      The output should include 'node'
+      The output should include 'dist/index.js'
+      The output should include '--transport'
+      The output should include 'stdio'
+    End
+
+    It 'handles docker.cmd as JSON array'
+      When call build_config_context test-server-with-cmd full
+      # JSON may be formatted with newlines, so check for array elements
+      The output should include '"container_args": ['
+      The output should include '"node"'
+      The output should include '"stdio"'
+    End
   End
 
   Describe 'cmd_config() with --add-json'
@@ -74,6 +97,33 @@ Describe 'Config Command'
       When call cmd_config test-server --format claude-code --add-json
       # Server name should NOT be in the JSON output
       The output should not start with "test-server"
+    End
+  End
+
+  Describe 'cmd_config() with docker.cmd override'
+    It 'includes docker.cmd arguments in generated config'
+      When call cmd_config test-server-with-cmd --format claude-code --snippet
+      The status should equal 0
+      The output should include 'node'
+      The output should include 'dist/index.js'
+      The output should include '--transport'
+      The output should include 'stdio'
+    End
+
+    It 'appends container_args after image in docker run command'
+      When call cmd_config test-server-with-cmd --format claude-code --snippet
+      The output should include 'test-server-cmd:latest'
+      # Args should come after the image
+      The output should include '"command": "docker"'
+    End
+
+    It 'works with --add-json format'
+      When call cmd_config test-server-with-cmd --format claude-code --add-json
+      The status should equal 0
+      The output should include '"node"'
+      The output should include '"dist/index.js"'
+      The output should include '"--transport"'
+      The output should include '"stdio"'
     End
   End
 End

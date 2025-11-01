@@ -1533,6 +1533,15 @@ build_config_context() {
     env_vars_json="$(echo "$env_vars" | jq -R -s 'split("\n") | map(select(length > 0))')"
   fi
 
+  # Get docker.cmd override if present
+  local container_args_json="[]"
+  local cmd_count
+  cmd_count="$(yq eval ".servers.${server_name}.docker.cmd | length" "$REGISTRY_FILE" 2>/dev/null || echo "0")"
+  
+  if [[ "$cmd_count" != "0" && "$cmd_count" != "null" ]]; then
+    container_args_json="$(yq eval ".servers.${server_name}.docker.cmd" "$REGISTRY_FILE" -o=json 2>/dev/null || echo '[]')"
+  fi
+
   # Get volumes
   local volumes_json="[]"
   local volumes_count
@@ -1585,6 +1594,7 @@ build_config_context() {
     --arg output_mode "$output_mode" \
     --argjson env_vars "$env_vars_json" \
     --argjson volumes "$volumes_json" \
+    --argjson container_args "$container_args_json" \
     '{
       server_id: $server_id,
       description: $description,
@@ -1592,7 +1602,7 @@ build_config_context() {
       env_file: (if ($env_vars | length > 0) then $env_file else null end),
       env_vars: $env_vars,
       volumes: (if ($volumes | length > 0) then $volumes else [] end),
-      container_args: [],
+      container_args: $container_args,
       output_mode: $output_mode
     }'
 }

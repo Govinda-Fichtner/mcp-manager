@@ -42,6 +42,7 @@ mock_docker() {
           echo "null/test/server:latest"
           echo "test/server:latest"
           echo "test-image:latest"
+          echo "test-server-cmd:latest"
         else
           # Return regular table format
           echo "REPOSITORY TAG IMAGE_ID CREATED SIZE"
@@ -49,6 +50,7 @@ mock_docker() {
           echo "null/test/server latest def456 1 day ago 50MB"
           echo "test/server latest ghi789 1 day ago 50MB"
           echo "test-image latest jkl012 1 day ago 40MB"
+          echo "test-server-cmd latest mno345 1 day ago 45MB"
         fi
         ;;
       "run")
