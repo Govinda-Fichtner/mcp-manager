@@ -173,6 +173,11 @@ servers:
 
     docker:
       network_mode: "host"
+      cmd:
+        - "node"
+        - "dist/index.js"
+        - "--transport"
+        - "stdio"
 
     startup_timeout: 10
 
