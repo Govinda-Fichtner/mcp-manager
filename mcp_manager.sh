@@ -1114,7 +1114,14 @@ setup_from_repository() {
   fi
 
   # Build Docker image
-  local image_tag="mcp-${server_name}:latest"
+  # Use source.image if specified in registry, otherwise default to mcp-<servername>:latest
+  local image_tag
+  image_tag="$(get_server_field "$server_name" "source.image")"
+
+  if [[ -z "$image_tag" || "$image_tag" == "null" ]]; then
+    image_tag="mcp-${server_name}:latest"
+  fi
+
   local platform
   platform="$(detect_platform)"
 
@@ -1462,10 +1469,10 @@ build_config_context() {
     proxy_command="$(get_server_field "$server_name" "source.proxy_command")"
     auth_header="$(get_server_field "$server_name" "source.auth_header")"
     auth_value="$(get_server_field "$server_name" "source.auth_value")"
-    
+
     # Get proxy_args as JSON array
     proxy_args_json="$(yq eval ".servers.${server_name}.source.proxy_args" "$REGISTRY_FILE" -o=json 2>/dev/null || echo '[]')"
-    
+
     # Get environment variables for remote server
     local env_vars_json="[]"
     local env_vars
@@ -1473,7 +1480,7 @@ build_config_context() {
     if [[ -n "$env_vars" ]]; then
       env_vars_json="$(echo "$env_vars" | jq -R -s 'split("\n") | map(select(length > 0))')"
     fi
-    
+
     # Build context for remote server
     jq -n \
       --arg server_id "$server_name" \
@@ -1537,7 +1544,7 @@ build_config_context() {
   local container_args_json="[]"
   local cmd_count
   cmd_count="$(yq eval ".servers.${server_name}.docker.cmd | length" "$REGISTRY_FILE" 2>/dev/null || echo "0")"
-  
+
   if [[ "$cmd_count" != "0" && "$cmd_count" != "null" ]]; then
     container_args_json="$(yq eval ".servers.${server_name}.docker.cmd" "$REGISTRY_FILE" -o=json 2>/dev/null || echo '[]')"
   fi
