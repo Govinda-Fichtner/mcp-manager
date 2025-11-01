@@ -310,9 +310,16 @@ servers:
     source:
       type: "remote"  # Remote SSE endpoint
       url: "https://mcp.linear.app/sse"
+      proxy_command: "npx"
+      proxy_args:
+        - "-y"
+        - "mcp-remote"
+      # When using Linear API token for authentication (bypasses OAuth):
+      auth_header: "--header"
+      auth_value: "Authorization:Bearer ${LINEAR_API_TOKEN}"
 
-    docker:
-      network_mode: "host"
+    environment_variables:
+      - "LINEAR_API_TOKEN"  # Optional: Use API token instead of OAuth
 
     startup_timeout: 10
 

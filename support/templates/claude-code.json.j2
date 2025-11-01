@@ -2,6 +2,26 @@
 {
   "mcpServers": {
     "{{ server_id }}": {
+{%- if source_type == "remote" %}
+      "command": "{{ proxy_command }}",
+      "args": [
+{%- for arg in proxy_args %}
+        "{{ arg }}"{%- if not loop.last %},{%- endif %}
+{%- endfor %},
+        "{{ url }}"
+{%- if auth_header and auth_value %},
+        "{{ auth_header }}",
+        "{{ auth_value }}"
+{%- endif %}
+      ]
+{%- if env_vars %},
+      "env": {
+{%- for env_var in env_vars %}
+        "{{ env_var }}": "${PLACEHOLDER_{{ env_var }}}"{%- if not loop.last %},{%- endif %}
+{%- endfor %}
+      }
+{%- endif %}
+{%- else %}
       "command": "docker",
       "args": [
         "run",
@@ -21,11 +41,32 @@
 {%- endfor %}
 {%- endif %}
       ]
+{%- endif %}
     }
   }
 }
 {%- elif output_mode == "snippet" -%}
 "{{ server_id }}": {
+{%- if source_type == "remote" %}
+  "command": "{{ proxy_command }}",
+  "args": [
+{%- for arg in proxy_args %}
+    "{{ arg }}"{%- if not loop.last %},{%- endif %}
+{%- endfor %},
+    "{{ url }}"
+{%- if auth_header and auth_value %},
+    "{{ auth_header }}",
+    "{{ auth_value }}"
+{%- endif %}
+  ]
+{%- if env_vars %},
+  "env": {
+{%- for env_var in env_vars %}
+    "{{ env_var }}": "${PLACEHOLDER_{{ env_var }}}"{%- if not loop.last %},{%- endif %}
+{%- endfor %}
+  }
+{%- endif %}
+{%- else %}
   "command": "docker",
   "args": [
     "run",
@@ -45,8 +86,28 @@
 {%- endfor %}
 {%- endif %}
   ]
+{%- endif %}
 }
 {%- elif output_mode == "add-json" -%}
+{%- if source_type == "remote" -%}
+{"command": "{{ proxy_command }}", "args": [
+{%- for arg in proxy_args -%}
+"{{ arg }}"{%- if not loop.last %}, {%- endif %}
+{%- endfor -%}
+, "{{ url }}"
+{%- if auth_header and auth_value -%}
+, "{{ auth_header }}", "{{ auth_value }}"
+{%- endif -%}
+]
+{%- if env_vars -%}
+, "env": {
+{%- for env_var in env_vars -%}
+"{{ env_var }}": "${PLACEHOLDER_{{ env_var }}}"{%- if not loop.last %}, {%- endif %}
+{%- endfor -%}
+}
+{%- endif -%}
+}
+{%- else -%}
 {"command": "docker", "args": ["run", "--rm", "-i", "--network", "host"
 {%- if env_vars -%}
 , "--env-file", "{{ env_file }}"
@@ -61,10 +122,31 @@
 {%- endfor -%}
 {%- endif -%}
 ]}
+{%- endif -%}
 {%- else -%}
 {
   "mcpServers": {
     "{{ server_id }}": {
+{%- if source_type == "remote" %}
+      "command": "{{ proxy_command }}",
+      "args": [
+{%- for arg in proxy_args %}
+        "{{ arg }}"{%- if not loop.last %},{%- endif %}
+{%- endfor %},
+        "{{ url }}"
+{%- if auth_header and auth_value %},
+        "{{ auth_header }}",
+        "{{ auth_value }}"
+{%- endif %}
+      ]
+{%- if env_vars %},
+      "env": {
+{%- for env_var in env_vars %}
+        "{{ env_var }}": "${PLACEHOLDER_{{ env_var }}}"{%- if not loop.last %},{%- endif %}
+{%- endfor %}
+      }
+{%- endif %}
+{%- else %}
       "command": "docker",
       "args": [
         "run",
@@ -84,6 +166,7 @@
 {%- endfor %}
 {%- endif %}
       ]
+{%- endif %}
     }
   }
 }

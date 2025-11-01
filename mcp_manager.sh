@@ -995,6 +995,9 @@ cmd_setup() {
     dockerfile)
       setup_from_dockerfile "$server_name"
       ;;
+    remote)
+      setup_from_remote "$server_name"
+      ;;
     *)
       log_error "Unknown source type: $source_type"
       return 1
@@ -1218,6 +1221,64 @@ setup_from_dockerfile() {
   fi
 }
 
+# Setup remote server (no Docker setup needed)
+# Arguments:
+#   $1 - Server name
+setup_from_remote() {
+  local server_name="$1"
+
+  log_info "Setting up $server_name (remote server)"
+  log_verbose "Server name: $server_name"
+
+  local url proxy_command
+  url="$(get_server_field "$server_name" "source.url")"
+  proxy_command="$(get_server_field "$server_name" "source.proxy_command")"
+
+  log_verbose "Remote URL: $url"
+  log_verbose "Proxy command: $proxy_command"
+
+  # Validate URL is set
+  if [[ -z "$url" || "$url" == "null" ]]; then
+    log_error "Remote URL not specified in registry"
+    return 1
+  fi
+
+  # Validate proxy command is set
+  if [[ -z "$proxy_command" || "$proxy_command" == "null" ]]; then
+    log_error "Proxy command not specified in registry"
+    return 1
+  fi
+
+  # Check if proxy command is available
+  if [[ "$proxy_command" == "npx" ]]; then
+    if ! command -v npx >/dev/null 2>&1; then
+      log_error "npx not found. Install Node.js to use remote MCP servers."
+      echo ""
+      echo "Installation:"
+      echo "  Ubuntu/Debian: sudo apt install nodejs npm"
+      echo "  macOS: brew install node"
+      return 1
+    fi
+    log_info "✓ npx is available"
+  else
+    if ! command -v "$proxy_command" >/dev/null 2>&1; then
+      log_error "Proxy command not found: $proxy_command"
+      return 1
+    fi
+    log_info "✓ $proxy_command is available"
+  fi
+
+  log_info "Remote server setup complete"
+  echo ""
+  echo "Next steps:"
+  echo "  1. Configure environment variables in .env file (if needed)"
+  echo "  2. Generate config: mcp_manager.sh config $server_name"
+  echo "  3. Add the configuration to your Claude Code settings"
+  echo ""
+  echo "Note: Remote servers don't require Docker - they connect to hosted endpoints."
+  return 0
+}
+
 #######################################
 # Command: config
 #######################################
@@ -1393,7 +1454,54 @@ build_config_context() {
   desc="$(get_server_field "$server_name" "description")"
   source_type="$(get_server_field "$server_name" "source.type")"
 
-  # Determine image name
+  # Handle remote vs Docker-based servers differently
+  if [[ "$source_type" == "remote" ]]; then
+    # Remote server - extract proxy configuration
+    local url proxy_command proxy_args_json auth_header auth_value
+    url="$(get_server_field "$server_name" "source.url")"
+    proxy_command="$(get_server_field "$server_name" "source.proxy_command")"
+    auth_header="$(get_server_field "$server_name" "source.auth_header")"
+    auth_value="$(get_server_field "$server_name" "source.auth_value")"
+    
+    # Get proxy_args as JSON array
+    proxy_args_json="$(yq eval ".servers.${server_name}.source.proxy_args" "$REGISTRY_FILE" -o=json 2>/dev/null || echo '[]')"
+    
+    # Get environment variables for remote server
+    local env_vars_json="[]"
+    local env_vars
+    env_vars="$(yq eval ".servers.${server_name}.environment_variables[]" "$REGISTRY_FILE" 2>/dev/null || echo "")"
+    if [[ -n "$env_vars" ]]; then
+      env_vars_json="$(echo "$env_vars" | jq -R -s 'split("\n") | map(select(length > 0))')"
+    fi
+    
+    # Build context for remote server
+    jq -n \
+      --arg server_id "$server_name" \
+      --arg description "$desc" \
+      --arg source_type "remote" \
+      --arg url "$url" \
+      --arg proxy_command "$proxy_command" \
+      --argjson proxy_args "$proxy_args_json" \
+      --arg auth_header "$auth_header" \
+      --arg auth_value "$auth_value" \
+      --argjson env_vars "$env_vars_json" \
+      --arg output_mode "$output_mode" \
+      '{
+        server_id: $server_id,
+        description: $description,
+        source_type: $source_type,
+        url: $url,
+        proxy_command: $proxy_command,
+        proxy_args: $proxy_args,
+        auth_header: (if $auth_header != "null" and $auth_header != "" then $auth_header else null end),
+        auth_value: (if $auth_value != "null" and $auth_value != "" then $auth_value else null end),
+        env_vars: $env_vars,
+        output_mode: $output_mode
+      }'
+    return 0
+  fi
+
+  # Docker-based server - determine image name
   local image
   if [[ "$source_type" == "registry" ]]; then
     # Schema v2.0: source.image contains full reference
