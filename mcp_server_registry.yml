@@ -293,11 +293,11 @@ servers:
       - "PLAYWRIGHT_SCREENSHOTS_PATH"
 
     volumes:
-      - "PLAYWRIGHT_SCREENSHOTS_PATH:/app/output"
+      - "PLAYWRIGHT_SCREENSHOTS_PATH:/tmp/playwright-output"
 
     docker:
       network_mode: "host"
-      cmd: ["--headless", "--browser", "chromium", "--no-sandbox", "--output-dir", "/app/output"]
+      cmd: ["--headless", "--browser", "chromium", "--no-sandbox", "--output-dir", "/tmp/playwright-output"]
 
     startup_timeout: 10
 
