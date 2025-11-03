@@ -611,8 +611,12 @@ check_single_server_health() {
       return 1
     fi
   elif [[ "$source_type" == "repository" ]]; then
-    # Repository builds use mcp-<server_name>:latest naming
-    image="mcp-${server_name}:latest"
+    # Repository builds: read image name from registry or use default
+    image="$(get_server_field "$server_name" "source.image")"
+
+    if [[ -z "$image" || "$image" == "null" ]]; then
+      image="mcp-${server_name}:latest"
+    fi
 
     if docker_image_exists "$image"; then
       echo "✓ Docker image built: $image"
