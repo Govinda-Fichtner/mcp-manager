@@ -213,10 +213,11 @@ servers:
     category: "email"
 
     source:
-      type: "repository"  # Clone and build from repository
+      type: "repository"  # Clone and build with custom Dockerfile
       repository: "https://github.com/mailgun/mailgun-mcp-server.git"
       image: "local/mailgun-mcp-server:latest"
       build_context: "."
+      dockerfile: "support/docker/Dockerfile.mailgun"  # Custom Dockerfile that builds from source
 
     environment_variables:
       - "MAILGUN_API_KEY"
